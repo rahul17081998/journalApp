@@ -35,8 +35,8 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>(); // you can send your payload here, like username, email, role etc
         User user = userService.findByUserName(username);
         if(user != null){
-            if(user.getEmail() !=null && !user.getEmail().equals("")){
-                claims.put("email", user.getEmail());
+            if(user.getUserName() !=null && !user.getUserName().equals("")){
+                claims.put("email", user.getUserName());
             }
 
             Boolean isUserAdmin=user.getRoles().stream()

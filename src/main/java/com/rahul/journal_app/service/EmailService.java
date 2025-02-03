@@ -1,10 +1,12 @@
 package com.rahul.journal_app.service;
 
 
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,16 +18,30 @@ public class EmailService {
 
 
     public void sendMail(String to, String subject, String body){
-
         try{
-            SimpleMailMessage mail = new SimpleMailMessage();
-            mail.setTo(to);
-            mail.setSubject(subject);
-            mail.setText(body);
-
-            javaMailSender.send(mail);
+            MimeMessage message =javaMailSender.createMimeMessage();
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(message, true);
+            mimeMessageHelper.setTo(to);
+            mimeMessageHelper.setSubject(subject);
+            mimeMessageHelper.setText(body,true);
+            javaMailSender.send(message);
         }catch (Exception e){
-            log.error("Exception while sendEmail: ", e);
+            log.error("Exception during sending a email: {}", e.getMessage());
+            throw new RuntimeException(e);
         }
     }
+
+//    public void sendMail2(String userName, String subject, String body) {
+//        try{
+//            MimeMessage message =javaMailSender.createMimeMessage();
+//            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(message, true);
+//            mimeMessageHelper.setTo(userName);
+//            mimeMessageHelper.setSubject(subject);
+//            mimeMessageHelper.setText(body,true);
+//            javaMailSender.send(message);
+//        }catch (Exception e){
+//            log.error("Exception during sending a email: {}", e.getMessage());
+//            throw new RuntimeException(e);
+//        }
+//    }
 }

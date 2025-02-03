@@ -71,7 +71,7 @@ public class UserScheduler {
 //                emailService.sendMail(user.getEmail(), subject, body);
 
                 SentimentalData sentimentalData = SentimentalData.builder()
-                        .email(user.getEmail())
+                        .email(user.getUserName())
                         .sentiment(body)
                         .build();
                 try {

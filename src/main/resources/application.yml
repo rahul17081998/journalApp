@@ -37,9 +37,12 @@ spring:
         properties:
             mail:
                 smtp:
+                    ssl:
+                        trust: smtp.gmail.com
                     auth: true
                     starttls:
                         enable: true
+                        required: true
     data:
         mongodb:
             uri: ${MONGODB_URI}
@@ -65,3 +68,14 @@ server:
 jwt:
     secret_key: ${JWT_SECRET_KEY}
     expiration_time: ${JWT_EXPIRY_TIME_IN_MINUTE}
+
+otp:
+    expiration_time: ${OTP_EXPIRY_TIME_IN_MINUTE}
+
+url:
+    baseUrl: ${APPLICATION_BASE_URL}
+
+twilio:
+    phoneNo: ${TWILIO_PHONE_NO}
+    accountSID: ${TWILIO_SID}
+    authToken: ${TWILIO_AUTH_TOKEN}

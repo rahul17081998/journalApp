@@ -1,12 +1,15 @@
 package com.rahul.journal_app.controller;
 
 import com.rahul.journal_app.api.response.WeatherResponse;
+import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.service.UserService;
 import com.rahul.journal_app.service.WeatherService;
+import com.rahul.journal_app.utils.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -24,6 +27,9 @@ public class UserController {
 
     private final WeatherService weatherService;
 
+    @Autowired
+    private Util util;
+
     public UserController(UserService userService, WeatherService weatherService) {
         this.userService = userService;
         this.weatherService = weatherService;
@@ -31,13 +37,18 @@ public class UserController {
 
 
     @PutMapping()
-    public ResponseEntity<String> updateUser(@RequestBody User user){
+    public ResponseEntity<?> updateUser(@RequestBody User user){
         logger.info("> User Update begin...");
         Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
         String username= authentication.getName();
-        userService.updateUser(username, user);
-        logger.info("> Updated user Successfully");
-        return new ResponseEntity<>("User Updated Successfully", HttpStatus.OK);
+        try {
+            ResponseEntity<?> response=userService.updateUser(username, user);
+            return response;
+        }catch (Exception e){
+            logger.info("Exception during updating user information: {}", e.getMessage(), e);
+        }
+        return new ResponseEntity<>(Constants.USER_NOT_UPDATED, HttpStatus.BAD_REQUEST);
+
     }
 
     @DeleteMapping()
@@ -56,6 +67,7 @@ public class UserController {
         User user=userService.findByUserName(username);
         String city=user.getCity();
         String feelsLikeTemp="NA";
+        String firstname = user.getUserName()==null?"User":util.capitalizeFirstChar(user.getFirstName());
         if(city ==null || city.equals("")){
             return new ResponseEntity<>("The city field for the user is either empty or null.", HttpStatus.NOT_FOUND);
         }
@@ -65,16 +77,9 @@ public class UserController {
                 feelsLikeTemp= String.valueOf(weatherResponse.getCurrent().getFeelslike());
             }
         }
-        return new ResponseEntity<>("Hello " + capitalizeFirstChar(username) + ", the weather in " + city + " feels like " + feelsLikeTemp + ".", HttpStatus.OK);
+        return new ResponseEntity<>("Hello " + firstname + ", the weather in " + city + " feels like " + feelsLikeTemp + ".", HttpStatus.OK);
     }
 
-
-    public String capitalizeFirstChar(String input) {
-        if (input == null || input.isEmpty()) {
-            return input; // Return as is for null or empty input
-        }
-        return input.substring(0, 1).toUpperCase() + input.substring(1);
-    }
 
     @GetMapping("/user-details")
     public ResponseEntity<?> getUserDetails(){

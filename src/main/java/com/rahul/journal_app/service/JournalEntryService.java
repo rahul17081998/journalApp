@@ -75,6 +75,9 @@ public class JournalEntryService {
         try{
             User savedUser = userService.findByUserName(userName);
             logger.info("> userName : {}, User Object :{}",userName, savedUser);
+            if(!savedUser.isSentimentAnalysis() && myJournal.getSentiment()!=null && !myJournal.getSentiment().equals("")){
+                savedUser.setSentimentAnalysis(true);
+            }
             // save the journal into journal_entries database
             JournalEntries savedJournalEntry = saveJournalEntry(myJournal);
             logger.info("> updated journal into Journal dataDB: {}", savedJournalEntry);
@@ -82,8 +85,8 @@ public class JournalEntryService {
             // save the journal id into user's journal list
             List<JournalEntries> userJournalEntities=savedUser.getJournalEntities();
             userJournalEntities.add(savedJournalEntry);
-//            savedUser.setUserName(null);
             User updatedUser=userService.saveUserEntry(savedUser);
+
             logger.info("> updated journal into user dataDB: {}", updatedUser);
             return savedJournalEntry;
         }catch (Exception e){

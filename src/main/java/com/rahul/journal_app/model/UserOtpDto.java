@@ -18,6 +18,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class UserOtpDto {
-    private String email;
+    private String userName;
     private String otp;
 }

@@ -4,7 +4,9 @@ import com.rahul.journal_app.api.response.TwitterUser;
 import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.model.UserOtpDto;
+import com.rahul.journal_app.repository.UserRepository;
 import com.rahul.journal_app.request.PasswordRestRequest;
+import com.rahul.journal_app.service.SmsService;
 import com.rahul.journal_app.service.TwitterService;
 import com.rahul.journal_app.service.UserDetailsServiceImpl;
 import com.rahul.journal_app.service.UserService;
@@ -40,8 +42,13 @@ public class PublicController {
     @Autowired
     private Util util;
 
+    @Autowired
+    private UserRepository userRepository;
+
     private final UserService userService;
     private final TwitterService twitterService;
+    @Autowired
+    private SmsService smsService;
 
     public PublicController(UserService userService, TwitterService twitterService) {
         this.userService = userService;
@@ -68,11 +75,20 @@ public class PublicController {
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User user){
         user.setRoles(Arrays.asList("USER"));
-        if(!util.isValidEmail(user.getEmail())){
+        if(!util.isValidEmail(user.getUserName())){
             return new ResponseEntity<>(Constants.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST);
         }
-        userService.saveNewUser(user);
-        return new ResponseEntity<>(Constants.USER_REGISTRATION_SUCCESSFUL, HttpStatus.OK);
+        User dbuser=userRepository.findByUserName(user.getUserName());
+        if(dbuser!=null){
+            return new ResponseEntity<>(Constants.USER_ALREADY_EXIST, HttpStatus.BAD_REQUEST);
+        }
+        try {
+            userService.saveNewUser(user);
+        }catch (Exception e){
+            log.info("Exception: {}",e.getMessage());
+            return new ResponseEntity<>(Constants.EXCEPTION_OCCURRED_DURING_USER_REGISTRATION, HttpStatus.OK);
+        }
+        return new ResponseEntity<>(Constants.USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY+user.getUserName(), HttpStatus.OK);
     }
 
     // create jwt token
@@ -81,6 +97,11 @@ public class PublicController {
         log.info("Start login");
         if(user.getUserName() !=null && !user.getUserName().equals("")){
             user.setUserName(user.getUserName().toLowerCase());
+        }
+
+        User dbUser=userRepository.findByUserName(user.getUserName());
+        if(dbUser==null){
+            return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
         }
 
         try {
@@ -100,7 +121,7 @@ public class PublicController {
 
         }catch (Exception e){
             log.error("Exception occurred while creatingAuthenticationToken: {}", e.getMessage());
-            return new ResponseEntity<>(Constants.INCORRECT_USERNAME_OR_PASSWORD, HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(Constants.INCORRECT_PASSWORD, HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -118,14 +139,15 @@ public class PublicController {
     }
 
 
-    @PostMapping("/verify-user")
-    public ResponseEntity<?> verifyUser(@RequestBody UserOtpDto userOtpDto){
-        log.info("sd");
+    @GetMapping("/verify-user")
+    public ResponseEntity<?> verifyUser(@RequestParam("userName") String userName,
+                                        @RequestParam("otp") String otp){
+        log.info("User email verification begin");
         try {
-            ResponseEntity<?> response=userService.verifyUser(userOtpDto);
+            ResponseEntity<?> response=userService.verifyUser(userName, otp);
             return response;
         }catch (Exception e){
-            throw  new RuntimeException(Constants.EXCEPTION_OCCURRED_DURING_USER_VERIFICATION);
+            return new ResponseEntity<>(Constants.EXCEPTION_OCCURRED_DURING_USER_VERIFICATION, HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -138,6 +160,19 @@ public class PublicController {
             throw new RuntimeException(Constants.PASSWORD_RESET_EXCEPTION_OCCURRED);
         }
         return response;
+    }
+
+    @PostMapping("/send-sms")
+    public ResponseEntity<?> sendSMS(@RequestParam("phoneNo") String phoneNo){
+        if (!phoneNo.startsWith("+")) {
+            phoneNo= "+" + phoneNo;
+        }
+        try{
+            ResponseEntity<?> response=smsService.sendWelcomeSMST(phoneNo);
+            return response;
+        }catch (Exception e){
+            return new ResponseEntity<>("Exception while sending sms to user", HttpStatus.BAD_REQUEST);
+        }
     }
 
 }

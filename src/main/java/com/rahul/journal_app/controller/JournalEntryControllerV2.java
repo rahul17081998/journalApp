@@ -48,17 +48,22 @@ public class JournalEntryControllerV2 {
     }
 
     @PostMapping("/create-journal")
-    public ResponseEntity<JournalEntries> createJournal(@RequestBody JournalEntries myJournal){
+    public ResponseEntity<?> createJournal(@RequestBody JournalEntries myJournal){
+        logger.info("Creating new journal");
         Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
         String userName= authentication.getName();
+        JournalEntries savedJournalEntry = null;
         try{
-            JournalEntries savedJournalEntry=journalEntryService.saveJournalEntryOfUser(myJournal, userName);
-            return new ResponseEntity<>(savedJournalEntry, HttpStatus.CREATED);
+            savedJournalEntry=journalEntryService.saveJournalEntryOfUser(myJournal, userName);
+            if(savedJournalEntry==null){
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+
         }catch (Exception e){
             logger.info("Exception occur while creating a journal entry, message: {}", e.getMessage());
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            throw new RuntimeException(e.getMessage());
         }
-
+        return new ResponseEntity<>(savedJournalEntry, HttpStatus.CREATED);
     }
 
     @GetMapping("/id/{id}")
