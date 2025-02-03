@@ -27,3 +27,160 @@ then you need to create bean for RedisConnectionFactory
 
 
 link: https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/install-redis-on-mac-os/
+
+
+# Run a pod with an Alpine image and label it
+kubectl run pod-3 --image=alpine --labels=name=pod-3 --restart=Never
+
+# Generate a YAML definition for an Nginx pod without applying it
+kubectl run test --image=nginx --restart=Never --dry-run=client -o yaml > node-selector.yaml
+
+# Create resources from a YAML file
+kubectl apply -f replicas_pod.yaml
+
+# Get pods with labels displayed
+kubectl get pods --show-labels
+
+# Delete multiple pods
+kubectl delete pod POD-1 POD-2 POD-3
+
+# Edit deployment YAML file and apply changes
+vim my-deployment.yaml
+kubectl apply -f my-deployment.yaml
+
+# Scale deployment to 2 replicas
+kubectl scale deployment my-deployment --replicas=2
+
+# Apply a frontend deployment
+kubectl apply -f frontend.yaml
+
+# Get the YAML of a specific pod
+kubectl get pod frontend-gbgfx -o yaml
+
+# Check rollout history of a deployment
+kubectl rollout history deployment my-deployment
+
+# Create a new namespace
+kubectl create namespace my-namespace
+
+# Check if a ResourceQuota has been created
+kubectl get resourcequota compute-resources -n my-namespace
+
+# Delete a ResourceQuota
+kubectl delete resourcequota compute-resources -n my-namespace
+
+# Check resource utilization in a namespace
+kubectl top namespace my-namespace
+kubectl top pod --namespace=my-namespace
+kubectl describe quota
+
+# Get pods with a specific label
+kubectl get pods --selector=color=blue
+
+# Save pod details to a YAML file
+kubectl get pod first -o yaml > first-po.yaml
+
+# Taint a node (prevent scheduling unless tolerated)
+kubectl taint node <Node-Name> <Key-Name>=<Value>:NoSchedule
+
+# Remove a taint from a node
+kubectl taint node controlplane run=mypod:NoSchedule-
+kubectl taint node node01 color=green:NoSchedule-
+
+# Label a node
+kubectl label node node01 capacity=low
+
+# Show node labels
+kubectl get nodes --show-labels
+
+# Apply a DaemonSet
+kubectl apply -f fluentd-daemonset.yaml
+
+# Get daemonsets and their associated pods
+kubectl get daemonsets
+kubectl get pods -l app=fluentd
+
+# Rollback a DaemonSet
+kubectl rollout undo daemonset fluentd-daemonset
+
+# Delete a DaemonSet
+kubectl delete daemonset fluentd-daemonset
+
+# Get all pods in all namespaces
+kubectl get pods --all-namespaces
+
+# View kubelet configuration
+cat /var/lib/kubelet/config.yaml
+
+# Move a static pod definition to the manifest directory
+mv static-pod.yaml /etc/kubernetes/manifests/static-pod.yaml
+
+# Check if a specific port is in use
+netstat -natulp | grep 10259
+
+# Remove a custom scheduler configuration
+rm my-scheduler.yaml
+
+# Initialize Kubernetes cluster with a specific API server address and pod CIDR
+kubeadm init --apiserver-advertise-address $(hostname -i) --pod-network-cidr=10.5.0.0/16
+
+# Create a deployment with a specific Nginx image
+kubectl create deployment nginx-deployment --image=nginx:1.14.1
+
+# Check rollout history of a deployment
+kubectl rollout history deployment/nginx-deployment
+
+# Update the image of a deployment and record the change
+kubectl set image deployment nginx-deployment nginx=nginx:1.16.1 --record=true
+
+# Check a specific rollout revision
+kubectl rollout history deployment/nginx-deployment --revision=3
+
+# Rollback deployment to the previous version
+kubectl rollout undo deployment nginx-deployment
+
+# Rollback deployment to a specific revision
+kubectl rollout undo deployment nginx-deployment --to-revision=1
+
+# Continuously watch pod statuses
+watch kubectl get pods
+
+# Get all environment variables of a pod
+kubectl exec POD_NAME -- printenv
+
+# Create ConfigMaps from literals and files
+kubectl create configmap configmap-2 --from-literal=name=sec-configmap --from-literal=color=blue
+kubectl create configmap configmap-3 --from-file=data-file
+
+# Open a bash shell inside a pod
+kubectl exec -it configmap-demo-3 -- bash
+
+# Create different types of Kubernetes Secrets
+
+## Generic Secret
+kubectl create secret generic db-secret --from-literal=username=dbuser --from-literal=password=Y4nys7f11
+
+## Docker Registry Secret
+kubectl create secret docker-registry docker-secret \
+  --docker-email=example@gmail.com \
+  --docker-username=dev \
+  --docker-password=pass1234 \
+  --docker-server=my-registry.example:5000
+
+## TLS Secret
+kubectl create secret tls my-tls-secret \
+  --cert=/root/data/serverca.crt \
+  --key=/root/data/servercakey.pem
+
+# List and describe secrets
+kubectl get secrets
+kubectl describe secret <secret-name>
+
+# Open a shell inside a pod
+kubectl exec -it POD_NAME -- bash
+
+# Get detailed YAML output of a pod
+kubectl get pod POD_NAME -o yaml
+
+# Decode base64 encoded secret data
+echo "<data>" | base64 -d
