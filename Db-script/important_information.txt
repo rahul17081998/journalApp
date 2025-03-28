@@ -67,6 +67,8 @@ curl --location --request DELETE 'http://localhost:8080/journal/id/67672de0ed3d6
 --header 'Authorization: Basic YWFhOjEyMzQ1'
 
 
+Access JMX Metrics Using JConsole
+
 
 
 

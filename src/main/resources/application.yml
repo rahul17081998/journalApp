@@ -87,3 +87,20 @@ twilio:
     phoneNo: ${TWILIO_PHONE_NO}
     accountSID: ${TWILIO_SID}
     authToken: ${TWILIO_AUTH_TOKEN}
+
+
+management:
+    endpoint:
+        mike:
+            enabled: true
+    endpoints:
+        enabled-by-default: true
+        web:
+            exposure:
+                include: "all"  # ✅ Corrected
+        jmx:
+            domain: mikesapp
+            unique-names: true
+            enabled: true
+            exposure:
+                include: "all"  # ✅ Corrected
