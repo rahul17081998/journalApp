@@ -1,6 +1,7 @@
 package com.rahul.journal_app.controller;
 
 import com.rahul.journal_app.service.PDFGeneratorService;
+import com.rahul.journal_app.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class PDFExportController {
     @Autowired
     private PDFGeneratorService pdfGeneratorService;
 
+    @Autowired
+    private UserService userService;
+
     @GetMapping("/generate")
     public void generatePDF(HttpServletResponse response) throws IOException {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -32,7 +36,13 @@ public class PDFExportController {
         String currentDateTime=dateFormatter.format(new Date());
 
         String headerKey = "Content-Disposition";
-        String headerValue = "attachment; filename=pdf_" + currentDateTime + ".pdf";
+
+        String userFirstName=userService.findByUserName(username).getFirstName();
+        String name="pdf";
+        if(userFirstName!=null && !userFirstName.trim().isEmpty()){
+            name = userFirstName;
+        }
+        String headerValue = "attachment; filename="+name +"_"+ currentDateTime + ".pdf";
         response.setHeader(headerKey, headerValue);
 
         pdfGeneratorService.export(response, username);

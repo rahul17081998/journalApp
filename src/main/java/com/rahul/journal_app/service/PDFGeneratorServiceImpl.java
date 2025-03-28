@@ -58,11 +58,12 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService{
         userTable.setSpacingAfter(10);
 
         addTableRow(userTable, "Name:", user.getFirstName() + " " + user.getLastName(), keyFont, valueFont);
-        addTableRow(userTable, "Username:", user.getUserName(), keyFont, valueFont);
+        addTableRow(userTable, "Email:", user.getUserName(), keyFont, valueFont);
         addTableRow(userTable, "Gender:", user.getGender(), keyFont, valueFont);
         addTableRow(userTable, "D.O.B:", user.getDateOfBirth().toString(), keyFont, valueFont);
         addTableRow(userTable, "Phone:", user.getPhoneNo(), keyFont, valueFont);
         addTableRow(userTable, "City:", user.getCity().toUpperCase(), keyFont, valueFont);
+        addTableRow(userTable, "Pin Code:", user.getPinCode(), keyFont, valueFont);
         addTableRow(userTable, "Country:", user.getCountry().toUpperCase(), keyFont, valueFont);
         addTableRow(userTable, "Verified:", user.isVerified() ? "Yes" : "No", keyFont, valueFont);
 
@@ -75,29 +76,43 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService{
         document.add(new Paragraph("\n"));
 
         for (var journal : user.getJournalEntities()) {
+            // Create a background cell (light grayish blue)
+            PdfPCell backgroundCell = new PdfPCell();
+            backgroundCell.setPadding(10);
+            backgroundCell.setBorder(Rectangle.NO_BORDER);
+            backgroundCell.setBackgroundColor(new Color(230, 240, 250)); // Light blueish-gray
 
+            PdfPTable journalTable = new PdfPTable(1);
+            journalTable.setWidthPercentage(100);
+            journalTable.setSpacingBefore(5);
+            journalTable.setSpacingAfter(10);
 
+            // Journal Title
             Font journalTitleFont = new Font(Font.HELVETICA, 12, Font.BOLD, new Color(0, 102, 204));
             Paragraph journalHeader = new Paragraph(journal.getTitle(), journalTitleFont);
-            document.add(journalHeader);
 
-
+            // Journal Date
             Font dateFont = new Font(Font.HELVETICA, 10, Font.ITALIC, Color.GRAY);
             Paragraph date = new Paragraph(journal.getDate().toString(), dateFont);
             date.setAlignment(Paragraph.ALIGN_RIGHT);
-            document.add(date);
 
-
+            // Journal Content
             Font contentFont = new Font(Font.HELVETICA, 11, Font.NORMAL, Color.BLACK);
-            Paragraph content = new Paragraph( journal.getContent(), contentFont);
-            document.add(content);
+            Paragraph content = new Paragraph(journal.getContent(), contentFont);
 
+            // Sentiment
             Font sentimentFont = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(50, 150, 50));
-            Paragraph sentiment = new Paragraph((journal.getSentiment() != null ? journal.getSentiment().toString() : "NA"), sentimentFont);
-            document.add(sentiment);
-            document.add(new Paragraph("\n"));
-        }
+            Paragraph sentiment = new Paragraph("Sentiment: " + (journal.getSentiment() != null ? journal.getSentiment().toString() : "NA"), sentimentFont);
 
+            // Add all elements to the background cell
+            backgroundCell.addElement(journalHeader);
+            backgroundCell.addElement(date);
+            backgroundCell.addElement(content);
+            backgroundCell.addElement(sentiment);
+
+            journalTable.addCell(backgroundCell);
+            document.add(journalTable);
+        }
         document.close();
     }
 
