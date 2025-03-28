@@ -58,7 +58,7 @@ public class SpringSecurity implements AuthenticationProvider, AuthenticationMan
 
         http.csrf(csrf->csrf.disable())
                 .authorizeHttpRequests((requests) -> requests
-                        .requestMatchers("/journal/**", "/user/**").authenticated()
+                        .requestMatchers("/journal/**", "/user/**", "/attachment/**", "/pdf/**").authenticated()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll());
 
