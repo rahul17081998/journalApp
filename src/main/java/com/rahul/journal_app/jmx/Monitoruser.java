@@ -39,4 +39,14 @@ public class Monitoruser implements MonitoruserMBean {
                 .distinct()
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public int getVerifiedUsers() {
+//        return (int)userRepository.findAll().stream()
+//                .filter(user-> user.isVerified())
+//                .count();
+
+        int count= (int) userRepository.countUserByVerified();
+        return count;
+    }
 }
