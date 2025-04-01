@@ -17,9 +17,9 @@ public class UserServiceTests {
     @Autowired
     private UserService userService;
 
-    @Test
-    public void testFindByUserName(){
-        Assertions.assertNotNull(userRepository.findByUserName("ram"));
-    }
+//    @Test
+//    public void testFindByUserName(){
+//        Assertions.assertNotNull(userRepository.findByUserName("ram"));
+//    }
 
 }

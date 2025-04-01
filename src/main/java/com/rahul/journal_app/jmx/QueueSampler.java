@@ -11,17 +11,17 @@ public class QueueSampler implements QueueSamplerMXBean{
     }
 
 
-    @Override
-    public QueueSample getQueueSample() {
-        synchronized (queue){
-            return new QueueSample(new Date(), queue.size(), queue.peek());
-        }
-    }
+//    @Override
+//    public QueueSample getQueueSample() {
+//        synchronized (queue){
+//            return new QueueSample(new Date(), queue.size(), queue.peek());
+//        }
+//    }
 
-    @Override
-    public void clearQueue() {
-        synchronized(queue){
-            queue.clear();
-        }
-    }
+//    @Override
+//    public void clearQueue() {
+//        synchronized(queue){
+//            queue.clear();
+//        }
+//    }
 }

@@ -11,7 +11,7 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 
 @Configuration
-public class JmxConfig {
+public class JmxConfigClass {
 
 
     @Bean
@@ -22,7 +22,7 @@ public class JmxConfig {
     @Bean
     public TodoListMBean todoListMBean(MBeanServer mBeanServer) throws Exception {
         TodoListMBean mBean = new TodoList();
-        ObjectName objectName = new ObjectName("rahul.example:type=TodoList");
+        ObjectName objectName = new ObjectName("rahul.example:type=TodoList, name=TodoListMBean");
         mBeanServer.registerMBean(mBean, objectName);
         return mBean;
     }
@@ -36,7 +36,7 @@ public class JmxConfig {
         queue.add("Request-3");
 
         QueueSampler mxBean = new QueueSampler(queue);
-        ObjectName objectName = new ObjectName("rahul.example:type=QueueSampler");
+        ObjectName objectName = new ObjectName("rahul.example:type=QueueSampler, name=QueueSampler");
         mBeanServer.registerMBean(mxBean, objectName);
 
         return mxBean;
@@ -53,7 +53,7 @@ public class JmxConfig {
     @Bean
     public MonitoruserMBean userMBean(MBeanServer mBeanServer) throws Exception {
         MonitoruserMBean userMBean = new Monitoruser(); // Create instance directly
-        ObjectName objectName = new ObjectName("rahul.example:type=Monitoruser");
+        ObjectName objectName = new ObjectName("rahul.example:type=MonitoruserMBean, name=MonitoruserMBean");
         mBeanServer.registerMBean(userMBean, objectName);
         return userMBean;
     }

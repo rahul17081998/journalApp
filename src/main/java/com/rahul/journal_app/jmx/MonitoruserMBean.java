@@ -5,7 +5,7 @@ import java.util.List;
 //@MXBean
 public interface MonitoruserMBean {
     public int getUserCount();
-    public List<String> getUserWithAdminAccess();
-    public List<String> getUsersCity();
+//    public List<String> getUserWithAdminAccess();
+//    public List<String> getUsersCity();
     public int getVerifiedUsers();
 }

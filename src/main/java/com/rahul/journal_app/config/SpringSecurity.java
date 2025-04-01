@@ -56,12 +56,13 @@ public class SpringSecurity implements AuthenticationProvider, AuthenticationMan
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
 
-        http.csrf(csrf->csrf.disable())
-                .authorizeHttpRequests((requests) -> requests
+        http.csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(requests -> requests
                         .requestMatchers("/journal/**", "/user/**", "/attachment/**", "/pdf/**").authenticated()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .anyRequest().permitAll());
-
+                        .requestMatchers("/actuator/**").permitAll()  // ✅ Allows Prometheus to scrape metrics
+                        .anyRequest().permitAll()
+                );
 //        http.sessionManagement(session->{
 //            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 //        });

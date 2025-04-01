@@ -90,17 +90,28 @@ twilio:
 
 
 management:
-    endpoint:
-        mike:
-            enabled: true
+    metrics:
+        enable:
+            jmx: true
+        export:
+            jmx:
+                enabled: true
+            prometheus:
+                enabled: true
+
     endpoints:
-        enabled-by-default: true
         web:
             exposure:
-                include: "all"  # ✅ Corrected
+                include: "health,info,prometheus"  # Ensure proper exposure
         jmx:
-            domain: mikesapp
+            domain: "mikesapp"
             unique-names: true
             enabled: true
             exposure:
-                include: "all"  # ✅ Corrected
+                include: "*"  # Use * instead of "all"
+
+    endpoint:
+        shutdown:
+            enabled: true
+        health:
+            show-details: always

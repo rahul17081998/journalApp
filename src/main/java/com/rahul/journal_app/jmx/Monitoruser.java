@@ -24,21 +24,21 @@ public class Monitoruser implements MonitoruserMBean {
         return userRepository.findAll().size();
     }
 
-    @Override
-    public List<String> getUserWithAdminAccess() {
-        return userRepository.findAll().stream()
-                .filter(user->user.getRoles().stream().anyMatch(role->role.equals("ADMIN")))
-                .map(User::getFirstName)
-                .collect(Collectors.toList());
-    }
+//    @Override
+//    public List<String> getUserWithAdminAccess() {
+//        return userRepository.findAll().stream()
+//                .filter(user->user.getRoles().stream().anyMatch(role->role.equals("ADMIN")))
+//                .map(User::getFirstName)
+//                .collect(Collectors.toList());
+//    }
 
-    @Override
-    public List<String> getUsersCity() {
-        return userRepository.findAll().stream()
-                .map(User::getCity)
-                .distinct()
-                .collect(Collectors.toList());
-    }
+//    @Override
+//    public List<String> getUsersCity() {
+//        return userRepository.findAll().stream()
+//                .map(User::getCity)
+//                .distinct()
+//                .collect(Collectors.toList());
+//    }
 
     @Override
     public int getVerifiedUsers() {

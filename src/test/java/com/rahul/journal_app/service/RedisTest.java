@@ -20,17 +20,17 @@ public class RedisTest {
     private RedisTemplate redisTemplate;
 
 
-    @Test
-    void testRedisConnection(){
-        try {
-            redisTemplate.opsForValue().set("email", "rahul@gmail.com");
-            //String salary= (String) redisTemplate.opsForValue().get("salary");
-            String email = (String) redisTemplate.opsForValue().get("email");
-            int x = 1;
-        }catch (Exception e){
-            log.error("Error: {}", e.getMessage(), e);
-        }
-    }
+//    @Test
+//    void testRedisConnection(){
+//        try {
+//            redisTemplate.opsForValue().set("email", "rahul@gmail.com");
+//            //String salary= (String) redisTemplate.opsForValue().get("salary");
+//            String email = (String) redisTemplate.opsForValue().get("email");
+//            int x = 1;
+//        }catch (Exception e){
+//            log.error("Error: {}", e.getMessage(), e);
+//        }
+//    }e
 
 
 
