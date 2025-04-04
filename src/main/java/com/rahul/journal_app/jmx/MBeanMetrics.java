@@ -20,7 +20,23 @@ public class MBeanMetrics {
 
 
         ObjectName objectName = new ObjectName("rahul.example:type=TodoList");
-        registry.gauge("rahul_example_todoSize", this, m -> {
+
+//        double val=-1;
+//        int todoSize= (int) mBeanServer.getAttribute(objectName, "TodoSize");
+//        val=todoSize;
+//
+//            Gauge.builder("rahul_example_TodoList_todoSize", ()-> 0)
+//                    .description("Number of todo count")
+//                    .tags(Tags.of("type", "todoList")
+//                            .and("env", "local")
+//                            .and("todoSize", String.valueOf(val))
+//                    )
+//                    .register(registry);
+
+
+
+
+        registry.gauge("rahul_example_TodoList_todoSize", this, m -> {
             try {
                 int x= (int) mBeanServer.getAttribute(objectName, "TodoSize");
                 return x;
@@ -32,22 +48,87 @@ public class MBeanMetrics {
 
 
         ObjectName memoryObject = new ObjectName("java.lang:type=Memory");
-        CompositeData heapMemory = (CompositeData) mBeanServer.getAttribute(memoryObject, "HeapMemoryUsage");
-        long usedHeapMemory = (long) heapMemory.get("used");
-        long maxHeapMemory = (long)heapMemory.get("max");
-        long committedHeapMemory = (long)heapMemory.get("committed");
-        long initHeapMemory = (long)heapMemory.get("init");
+//        CompositeData heapMemory = (CompositeData) mBeanServer.getAttribute(memoryObject, "HeapMemoryUsage");
+//        long usedHeapMemory = (long) heapMemory.get("used");
+//        long maxHeapMemory = (long)heapMemory.get("max");
+//        long committedHeapMemory = (long)heapMemory.get("committed");
+//        long initHeapMemory = (long)heapMemory.get("init");
 
-        Gauge.builder("jvm_x_heap_memory_usage", ()-> 0)
+
+
+
+        Gauge.builder("heap_memory_used", ()-> {
+                    CompositeData heapMemory = null;
+                    try {
+                        heapMemory = (CompositeData) mBeanServer.getAttribute(memoryObject, "HeapMemoryUsage");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    long usedHeapMemory = (long) heapMemory.get("used");
+                    return (double)usedHeapMemory;
+                })
                 .description("Custom metric to monitor JVM heap memory usage from JMX")
                 .tags(Tags.of("type", "heap")
                         .and("source", "jmx MBean")
                         .and("env", "local")
-                        .and("used", String.valueOf(usedHeapMemory))
-                        .and("max", String.valueOf(maxHeapMemory))
-                        .and("committed", String.valueOf(committedHeapMemory))
-                        .and("init", String.valueOf(initHeapMemory))
                 )
                 .register(registry);
-    }
+
+        Gauge.builder("heap_memory_max", ()-> {
+                    CompositeData heapMemory = null;
+                    try {
+                        heapMemory = (CompositeData) mBeanServer.getAttribute(memoryObject, "HeapMemoryUsage");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    long maxHeapMemory = (long)heapMemory.get("max");
+                    return maxHeapMemory;
+                })
+                .description("Custom metric to monitor JVM heap memory usage from JMX")
+                .tags(Tags.of("type", "heap")
+                        .and("source", "jmx MBean")
+                        .and("env", "local")
+                )
+                .register(registry);
+
+
+
+        Gauge.builder("heap_memory_committed", ()-> {
+                    CompositeData heapMemory = null;
+                    try {
+                        heapMemory = (CompositeData) mBeanServer.getAttribute(memoryObject, "HeapMemoryUsage");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    long committedHeapMemory = (long)heapMemory.get("committed");
+                    return committedHeapMemory;
+                })
+                .description("Custom metric to monitor JVM heap memory usage from JMX")
+                .tags(Tags.of("type", "heap")
+                        .and("source", "jmx MBean")
+                        .and("env", "local")
+                )
+                .register(registry);
+
+
+        Gauge.builder("heap_memory_init", ()-> {
+                    CompositeData heapMemory = null;
+                    try {
+                        heapMemory = (CompositeData) mBeanServer.getAttribute(memoryObject, "HeapMemoryUsage");
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    long initHeapMemory = (long)heapMemory.get("init");
+                    return initHeapMemory;
+                })
+                .description("Custom metric to monitor JVM heap memory usage from JMX")
+                .tags(Tags.of("type", "heap")
+                        .and("source", "jmx MBean")
+                        .and("env", "local")
+                )
+                .register(registry);
+
+
+
+        }
 }
