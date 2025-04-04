@@ -22,7 +22,7 @@ public class JmxConfigClass {
     @Bean
     public TodoListMBean todoListMBean(MBeanServer mBeanServer) throws Exception {
         TodoListMBean mBean = new TodoList();
-        ObjectName objectName = new ObjectName("rahul.example:type=TodoList, name=TodoListMBean");
+        ObjectName objectName = new ObjectName("rahul.example:type=TodoList");
         mBeanServer.registerMBean(mBean, objectName);
         return mBean;
     }

@@ -19,10 +19,10 @@ public class TodoList implements TodoListMBean{
 //        return todos.stream().collect(Collectors.joining("\n"));
 //    }
 //
-//    @Override
-//    public void add(String todo) {
-//        todos.add(todo);
-//    }
+    @Override
+    public void add(String todo) {
+        todos.add(todo);
+    }
 //
 //    @Override
 //    public String delete(String todo) {
@@ -35,10 +35,10 @@ public class TodoList implements TodoListMBean{
 //        return todos.get(todos.size()-1);
 //    }
 //
-//    @Override
-//    public List<String> getTodos() {
-//        return todos;
-//    }
+    @Override
+    public List<String> getTodos() {
+        return todos;
+    }
 
     @Override
     public int getTodoSize() {

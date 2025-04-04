@@ -27,7 +27,7 @@ public class SmsService {
     public ResponseEntity<?> sendWelcomeSMST(String toPhoneNumber) {
 
         try {
-            sendSMS(toPhoneNumber, "Welcome to JournalApp!");
+            sendSMS(toPhoneNumber, "Kiske liye kam karte ho tum😂 batao \n Sir mai kam hi nhi karta hu kuch🤣🤣!");
             log.info("SMS send to: {}", toPhoneNumber);
             return new ResponseEntity<>("SMS send to " + toPhoneNumber + " successfully", HttpStatus.OK);
         }catch (Exception e){
