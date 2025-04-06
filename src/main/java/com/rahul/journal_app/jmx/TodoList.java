@@ -14,27 +14,27 @@ public class TodoList implements TodoListMBean{
     }
 
 
-//    @Override
-//    public String listAllTodos() {
-//        return todos.stream().collect(Collectors.joining("\n"));
-//    }
+    @Override
+    public String listAllTodos() {
+        return todos.stream().collect(Collectors.joining("\n"));
+    }
 //
     @Override
     public void add(String todo) {
         todos.add(todo);
     }
-//
-//    @Override
-//    public String delete(String todo) {
-//        todos.remove(todo);
-//        return listAllTodos();
-//    }
-//
-//    @Override
-//    public String getLatestTodo() {
-//        return todos.get(todos.size()-1);
-//    }
-//
+
+    @Override
+    public String delete(String todo) {
+        todos.remove(todo);
+        return listAllTodos();
+    }
+
+    @Override
+    public String getLatestTodo() {
+        return todos.get(todos.size()-1);
+    }
+
     @Override
     public List<String> getTodos() {
         return todos;

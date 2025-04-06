@@ -10,16 +10,32 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeData;
 import java.lang.management.ManagementFactory;
+import java.lang.management.*;
 
 @Slf4j
 @Component
 public class ExportJmxMBeanMetrics {
 
     private final MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+    private final OperatingSystemMXBean osBean =
+            (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
 
     public ExportJmxMBeanMetrics(MeterRegistry registry){
         registerHeapMemoryMetrics(registry);
         registerTodoMetric(registry);
+        registerCpuMetrics(registry);
+        registerOperatingSystemMetrics(registry);
+    }
+
+    private void registerOperatingSystemMetrics(MeterRegistry registry) {
+        Tags baseTag=Tags.of("type", "heap", "source", "jmx MBean", "env", "local");
+
+        Gauge.builder("os_cpu_load",
+                        ()->fetchJmxValue("java.lang:type=OperatingSystem", "CpuLoad",  null, "os_cpu_load")
+                )
+                .description("JMX MBean OS CPU load")
+                .tags(baseTag)
+                .register(registry);
     }
 
     private void registerTodoMetric(MeterRegistry meterRegistry){
@@ -88,5 +104,24 @@ public class ExportJmxMBeanMetrics {
         }
 
         return null; // Don't expose the metric if it fails
+    }
+
+    private void registerCpuMetrics(MeterRegistry registry) {
+
+
+//        Gauge.builder("cpu_process_usage", osBean, bean -> bean.getProcessCpuLoad())
+//                .description("Process CPU load (0.0 to 1.0)")
+//                .tags("type", "cpu", "env", "local")
+//                .register(registry);
+//
+//        Gauge.builder("cpu_system_usage", osBean, bean -> bean.getSystemCpuLoad())
+//                .description("System CPU load (0.0 to 1.0)")
+//                .tags("type", "cpu", "env", "local")
+//                .register(registry);
+
+        Gauge.builder("cpu_cores", osBean, bean -> (double) bean.getAvailableProcessors())
+                .description("Available processor cores")
+                .tags("type", "cpu", "env", "local")
+                .register(registry);
     }
 }
