@@ -377,4 +377,23 @@ public class UserService {
         }
 
     }
+
+
+    public double getActiveUserCount(){
+        return (double) userRepository.findAll().stream()
+                .filter(user->user.isVerified()==true)
+                .count();
+    }
+
+    public double getUserCountWithNonEmptyJournals(){
+        return (double) userRepository.findAll().stream()
+                .filter(user -> !user.getJournalEntities().isEmpty())
+                .count();
+    }
+
+    public double getUserCountWithAdminAccess() {
+        return (double) userRepository.findAll().stream()
+                .filter(user -> user.getRoles().contains("ADMIN"))
+                .count();
+    }
 }

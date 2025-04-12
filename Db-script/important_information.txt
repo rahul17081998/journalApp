@@ -67,6 +67,57 @@ curl --location --request DELETE 'http://localhost:8080/journal/id/67672de0ed3d6
 --header 'Authorization: Basic YWFhOjEyMzQ1'
 
 
+***************** Access JMX Metrics Using jmx_prometheus_javaagent and Jconsole *****************
+
+NOTE: How to see JMV metric on prometheus
+
+we have created a config file in which we mention which jmx metrics we want to expose, for that we create a file called:
+jmx_exporter_config.yml    /// you can give any name
+
+for now we have expose all the metrics
+
+
+we can Run directly through following command:
+   java -javaagent:/Users/rahulkumar/jmx_prometheus_javaagent-1.2.0.jar=1234:/Users/rahulkumar/Documents/mongoDb-springboot/journalApp/config/jmx_exporter_config.yml -jar /Users/rahulkumar/Documents/mongoDb-springboot/journalApp/target/journalApp-0.0.1-SNAPSHOT.jar
+
+-> but we face a issue bcz we have not hard coded the properties.yaml value, we pass through a file called environment_variable.env
+so it will throw errors
+
+
+we added the following file into Edit Configuration in Intellij IDEA
+-javaagent:/Users/rahulkumar/jmx_prometheus_javaagent-1.2.0.jar=1234:/Users/rahulkumar/Documents/mongoDb-springboot/journalApp/config/jmx_exporter_config.yml
+
+By default, the JMX Exporter exposes metrics on:
+http://localhost:<PORT>/metrics
+
+PORT
+
+When you start your Spring Boot application with this command:
+-javaagent:/Users/rahulkumar/jmx_prometheus_javaagent-1.2.0.jar=1234:/path/to/jmx_exporter_config.yml
+
+	•	1234: This is the port number where the Java Agent (JMX Exporter) runs.
+	•	jmx_exporter_config.yml: The config file that defines what metrics to expose.
+
+Now to view metric we need to register the following end point into prometheus.yaml file
+http://localhost:1234/metrics
+
+
+  - job_name: 'jmx'
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ['localhost:1234']
+
+To Run the prometheus, go the directory in which prometheus-2.54.1.darwin-amd64 file exist
+that is : /Users/rahulkumar
+
+ javaagent [jmx_prometheus_javaagent-1.2.0.jar] file also exist in /Users/rahulkumar
+
+
+*
+Add this VM
+-javaagent:/Users/rahulkumar/jmx_prometheus_javaagent-1.2.0.jar=1234:/Users/rahulkumar/Documents/mongoDb-springboot/journalApp/config/jmx_exporter_config.yml
+
+
 
 
 

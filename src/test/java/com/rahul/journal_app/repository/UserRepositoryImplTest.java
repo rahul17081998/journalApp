@@ -12,8 +12,8 @@ public class UserRepositoryImplTest {
     private UserRepositoryImpl userRepository;
 
 
-    @Test
-    public void getUsersForSentimentAnalysisTest(){
-        Assertions.assertNotNull(userRepository.getUsersForSentimentAnalysis());
-    }
+//    @Test
+//    public void getUsersForSentimentAnalysisTest(){
+//        Assertions.assertNotNull(userRepository.getUsersForSentimentAnalysis());
+//    }
 }

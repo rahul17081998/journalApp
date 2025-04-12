@@ -12,11 +12,11 @@ public class EmailServiceTest {
     private EmailService emailService;
 
 
-    @Test
-    @Disabled
-    void testSendEmail(){
-        emailService.sendMail("rahul2140kumar@gmail.com",
-                "Testing java mail sender",
-                "Hi, Kya hal chal bhi");
-    }
+//    @Test
+//    @Disabled
+//    void testSendEmail(){
+//        emailService.sendMail("rahul2140kumar@gmail.com",
+//                "Testing java mail sender",
+//                "Hi, Kya hal chal bhi");
+//    }
 }

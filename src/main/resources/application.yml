@@ -87,3 +87,31 @@ twilio:
     phoneNo: ${TWILIO_PHONE_NO}
     accountSID: ${TWILIO_SID}
     authToken: ${TWILIO_AUTH_TOKEN}
+
+
+management:
+    metrics:
+        enable:
+            jmx: true
+        export:
+            jmx:
+                enabled: true
+            prometheus:
+                enabled: true
+
+    endpoints:
+        web:
+            exposure:
+                include: "health,info,prometheus"  # Ensure proper exposure
+        jmx:
+            domain: "mikesapp"
+            unique-names: true
+            enabled: true
+            exposure:
+                include: "*"  # Use * instead of "all"
+
+    endpoint:
+        shutdown:
+            enabled: true
+        health:
+            show-details: always
