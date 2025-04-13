@@ -3,20 +3,25 @@ package com.rahul.journal_app.service;
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.Rectangle;
-import com.lowagie.text.pdf.PdfPCell;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.pdf.*;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.awt.*;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
+@Slf4j
 @Service
-public class PDFGeneratorServiceImpl implements PDFGeneratorService{
+public class PDFGeneratorServiceImpl implements PDFGeneratorService {
 
     @Autowired
     private UserRepository userRepository;
@@ -26,108 +31,335 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService{
     @Override
     public void export(HttpServletResponse response, String userName) throws IOException {
         UserDto user = userService.getUserDetail(userName);
-        if(user==null){
+        if (user == null) {
             throw new RuntimeException("User not found");
         }
 
-        Document document = new Document(PageSize.A4);
-        PdfWriter.getInstance(document, response.getOutputStream());
+        // Step 1: Create PDF for journal entries first and store page numbers
+        Map<String, Integer> journalPageNumbers = new HashMap<>();
+        ByteArrayOutputStream journalEntriesPdf = createJournalEntriesPdf(user, journalPageNumbers);
+        
+        // Step 2: Create PDF for user details and TOC using stored page numbers
+        ByteArrayOutputStream userDetailsPdf = createUserDetailsPdf(user, journalPageNumbers);
+        
+        // Step 3: Merge PDFs in the specified order (user details + journal entries)
+        mergePDFs(response, userDetailsPdf, journalEntriesPdf);
+    }
+
+    private ByteArrayOutputStream createJournalEntriesPdf(UserDto user, Map<String, Integer> journalPageNumbers) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+        PdfWriter writer = PdfWriter.getInstance(document, baos);
+        writer.setPageEvent(new RegularPageEventHelper());
         document.open();
 
-        // Set title with user's name
-        Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD, new Color(0, 102, 204));
-        Paragraph title = new Paragraph("Client Report: " + user.getFirstName() + " " + user.getLastName(), titleFont);
-        title.setAlignment(Paragraph.ALIGN_CENTER);
-        document.add(title);
-        document.add(new Paragraph("\n"));
+        if (user.getJournalEntities() != null && !user.getJournalEntities().isEmpty()) {
+            for (var journal : user.getJournalEntities()) {
+                // Get the current page number before adding the journal
+                int currentPage = writer.getPageNumber();
+                log.info("Current page number before adding journal '{}': {}", journal.getTitle(), currentPage);
 
-        // User Information Section
-        Font sectionFont = new Font(Font.HELVETICA, 14, Font.BOLD, new Color(50, 50, 50));
-        Paragraph userInfoTitle = new Paragraph("User Information", sectionFont);
-        userInfoTitle.setAlignment(Paragraph.ALIGN_CENTER);
-        document.add(userInfoTitle);
-        document.add(new Paragraph("\n"));
+                // Journal Entry Card
+                PdfPTable journalCard = new PdfPTable(1);
+                journalCard.setWidthPercentage(100);
+                journalCard.setSpacingBefore(20);
+                journalCard.setSpacingAfter(20);
 
-        Font keyFont = new Font(Font.HELVETICA, 12, Font.BOLD, Color.BLACK);
-        Font valueFont = new Font(Font.HELVETICA, 12, Font.NORMAL, Color.DARK_GRAY);
+                // Title
+                PdfPCell titleCell = new PdfPCell(new Phrase(
+                    journal.getTitle(),
+                    new Font(Font.HELVETICA, 14, Font.BOLD, new Color(0, 51, 102))
+                ));
+                titleCell.setPadding(8);
+                titleCell.setBorder(Rectangle.NO_BORDER);
+                titleCell.setBackgroundColor(new Color(250, 250, 250));
+                journalCard.addCell(titleCell);
 
-        // Two-column user details layout
+                // Content
+                Paragraph contentParagraph = new Paragraph();
+                contentParagraph.add(new Phrase(
+                    journal.getContent(),
+                    new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(51, 51, 51))
+                ));
+                
+                contentParagraph.add(new Phrase("\n\n"));
+                
+                Paragraph footerLine = new Paragraph();
+                footerLine.setAlignment(Element.ALIGN_RIGHT);
+                footerLine.add(new Chunk(
+                    new SimpleDateFormat("MMM dd, yyyy").format(journal.getDate()),
+                    new Font(Font.HELVETICA, 8, Font.ITALIC, new Color(102, 102, 102))
+                ));
+                
+                footerLine.add(new Chunk("  "));
+                footerLine.add(new Chunk(
+                    journal.getSentiment() != null ? journal.getSentiment().toString() : "N/A",
+                    new Font(Font.HELVETICA, 8, Font.BOLD, new Color(0, 102, 0))
+                ));
+                
+                contentParagraph.add(footerLine);
+
+                PdfPCell contentCell = new PdfPCell(contentParagraph);
+                contentCell.setPadding(8);
+                contentCell.setBorder(Rectangle.NO_BORDER);
+                contentCell.setBackgroundColor(Color.WHITE);
+                journalCard.addCell(contentCell);
+
+                document.add(journalCard);
+                
+                // Get the page number after adding the journal
+                int newPageNumber = writer.getPageNumber();
+                log.info("Page number after adding journal '{}': {}", journal.getTitle(), newPageNumber);
+                
+                // Store the page number for this journal
+                journalPageNumbers.put(journal.getTitle(), newPageNumber);
+            }
+        }
+
+        document.close();
+        log.info("Journal entries PDF completed with final page numbers: {}", journalPageNumbers);
+        return baos;
+    }
+
+    private ByteArrayOutputStream createUserDetailsPdf(UserDto user, Map<String, Integer> journalPageNumbers) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document document = new Document(PageSize.A4, 40, 40, 40, 40);
+        PdfWriter writer = PdfWriter.getInstance(document, baos);
+        writer.setPageEvent(new RomanNumeralPageEventHelper());
+        document.open();
+
+        log.info("Starting user details PDF with journal page numbers: {}", journalPageNumbers);
+
+        // Add header background
+        PdfContentByte canvas = writer.getDirectContent();
+        canvas.setColorFill(new Color(0, 51, 102));
+        canvas.rectangle(0, PageSize.A4.getHeight() - 100, PageSize.A4.getWidth(), 100);
+        canvas.fill();
+
+        // Add logo and header text
+        canvas.setColorFill(Color.WHITE);
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED), 24);
+        canvas.beginText();
+        canvas.showTextAligned(Element.ALIGN_LEFT, "VELINQ", 50, PageSize.A4.getHeight() - 50, 0);
+        canvas.endText();
+
+        // Add user ID at top-right
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED), 10);
+        canvas.beginText();
+        canvas.showTextAligned(Element.ALIGN_RIGHT, "User ID: " + user.getUserName(), PageSize.A4.getWidth() - 50, PageSize.A4.getHeight() - 50, 0);
+        canvas.endText();
+
+        // Add decorative line
+        canvas.setColorStroke(new Color(0, 51, 102));
+        canvas.setLineWidth(2f);
+        canvas.moveTo(40, PageSize.A4.getHeight() - 120);
+        canvas.lineTo(PageSize.A4.getWidth() - 40, PageSize.A4.getHeight() - 120);
+        canvas.stroke();
+
+        // User Details Section
+        Font sectionFont = new Font(Font.HELVETICA, 16, Font.BOLD, new Color(0, 51, 102));
+        Paragraph userDetails = new Paragraph("User Profile", sectionFont);
+        userDetails.setSpacingBefore(30);
+        userDetails.setSpacingAfter(20);
+        document.add(userDetails);
+
+        // User Details Table
         PdfPTable userTable = new PdfPTable(2);
         userTable.setWidthPercentage(100);
-        userTable.setSpacingBefore(2);
-        userTable.setSpacingAfter(10);
+        userTable.setSpacingBefore(10);
+        userTable.setSpacingAfter(30);
+        userTable.setWidths(new float[]{1, 2});
 
-        addTableRow(userTable, "Name:", user.getFirstName() + " " + user.getLastName(), keyFont, valueFont);
-        addTableRow(userTable, "Email:", user.getUserName(), keyFont, valueFont);
-        addTableRow(userTable, "Gender:", user.getGender(), keyFont, valueFont);
-        addTableRow(userTable, "D.O.B:", user.getDateOfBirth().toString(), keyFont, valueFont);
-        addTableRow(userTable, "Phone:", user.getPhoneNo(), keyFont, valueFont);
-        addTableRow(userTable, "City:", user.getCity().toUpperCase(), keyFont, valueFont);
-        addTableRow(userTable, "Pin Code:", user.getPinCode(), keyFont, valueFont);
-        addTableRow(userTable, "Country:", user.getCountry().toUpperCase(), keyFont, valueFont);
-        addTableRow(userTable, "Verified:", user.isVerified() ? "Yes" : "No", keyFont, valueFont);
+        addBankStyleRow(userTable, "Full Name", user.getFirstName() + " " + user.getLastName());
+        addBankStyleRow(userTable, "Email", user.getUserName());
+        addBankStyleRow(userTable, "Gender", user.getGender());
+        addBankStyleRow(userTable, "Date of Birth", user.getDateOfBirth().toString());
+        addBankStyleRow(userTable, "Contact", user.getPhoneNo());
+        addBankStyleRow(userTable, "Location", user.getCity().toUpperCase() + ", " + user.getCountry().toUpperCase());
+        addBankStyleRow(userTable, "Postal Code", user.getPinCode());
+        addBankStyleRow(userTable, "Status", user.isVerified() ? "ACTIVE" : "INACTIVE");
 
         document.add(userTable);
 
-        // Journal Entries Section
-        Paragraph journalTitle = new Paragraph("Journal Entries", sectionFont);
-        journalTitle.setAlignment(Paragraph.ALIGN_CENTER);
-        document.add(journalTitle);
-        document.add(new Paragraph("\n"));
+        // Add footer using existing canvas
+        canvas.beginText();
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED), 9);
+        canvas.setColorFill(new Color(102, 102, 102));
+        canvas.showTextAligned(
+            Element.ALIGN_RIGHT,
+            "Generated on: " + new SimpleDateFormat("MMMM dd, yyyy 'at' hh:mm a").format(new Date()),
+            PageSize.A4.getWidth() - 50,
+            50,
+            0
+        );
+        canvas.endText();
 
-        for (var journal : user.getJournalEntities()) {
-            // Create a background cell (light grayish blue)
-            PdfPCell backgroundCell = new PdfPCell();
-            backgroundCell.setPadding(10);
-            backgroundCell.setBorder(Rectangle.NO_BORDER);
-            backgroundCell.setBackgroundColor(new Color(230, 240, 250)); // Light blueish-gray
+        // Table of Contents
+        document.newPage();
+        PdfPTable tocHeader = new PdfPTable(1);
+        tocHeader.setWidthPercentage(100);
+        tocHeader.setSpacingBefore(20);
 
-            PdfPTable journalTable = new PdfPTable(1);
-            journalTable.setWidthPercentage(100);
-            journalTable.setSpacingBefore(5);
-            journalTable.setSpacingAfter(10);
+        PdfPCell tocTitleCell = new PdfPCell(new Phrase("Table of Contents", 
+            new Font(Font.HELVETICA, 20, Font.BOLD, new Color(0, 51, 102))));
+        tocTitleCell.setBorder(Rectangle.NO_BORDER);
+        tocTitleCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        tocTitleCell.setPadding(10);
+        tocHeader.addCell(tocTitleCell);
+        document.add(tocHeader);
 
-            // Journal Title
-            Font journalTitleFont = new Font(Font.HELVETICA, 12, Font.BOLD, new Color(0, 102, 204));
-            Paragraph journalHeader = new Paragraph(journal.getTitle(), journalTitleFont);
+        if (user.getJournalEntities() != null && !user.getJournalEntities().isEmpty()) {
+            PdfPTable tocTable = new PdfPTable(2);
+            tocTable.setWidthPercentage(100);
+            tocTable.setSpacingBefore(20);
+            tocTable.setSpacingAfter(20);
+            tocTable.setWidths(new float[]{4, 1});
 
-            // Journal Date
-            Font dateFont = new Font(Font.HELVETICA, 10, Font.ITALIC, Color.GRAY);
-            Paragraph date = new Paragraph(journal.getDate().toString(), dateFont);
-            date.setAlignment(Paragraph.ALIGN_RIGHT);
+            addTableHeaderCell(tocTable, "Journal Title", new Color(0, 51, 102));
+            addTableHeaderCell(tocTable, "Page", new Color(0, 51, 102));
 
-            // Journal Content
-            Font contentFont = new Font(Font.HELVETICA, 11, Font.NORMAL, Color.BLACK);
-            Paragraph content = new Paragraph(journal.getContent(), contentFont);
+            // Calculate the offset for page numbers (user details + TOC page)
+            int pageOffset = 2; // User details (1) + TOC (1)
+            log.info("TOC page offset: {}", pageOffset);
 
-            // Sentiment
-            Font sentimentFont = new Font(Font.HELVETICA, 11, Font.BOLD, new Color(50, 150, 50));
-            Paragraph sentiment = new Paragraph("Sentiment: " + (journal.getSentiment() != null ? journal.getSentiment().toString() : "NA"), sentimentFont);
+            for (var journal : user.getJournalEntities()) {
+                PdfPCell titleCell = new PdfPCell(new Phrase(
+                    journal.getTitle(),
+                    new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(51, 51, 51))
+                ));
+                titleCell.setPadding(8);
+                titleCell.setBorder(Rectangle.BOTTOM);
+                titleCell.setBorderColor(new Color(204, 204, 204));
+                titleCell.setBackgroundColor(new Color(250, 250, 250));
+                tocTable.addCell(titleCell);
 
-            // Add all elements to the background cell
-            backgroundCell.addElement(journalHeader);
-            backgroundCell.addElement(date);
-            backgroundCell.addElement(content);
-            backgroundCell.addElement(sentiment);
+                // Get the stored page number from the map and add the offset
+                Integer pageNumber = journalPageNumbers.get(journal.getTitle());
+                int adjustedPageNumber = pageNumber != null ? pageNumber  : 0;
+                log.info("TOC entry - Journal: '{}', Original page: {}, Adjusted page: {}", 
+                    journal.getTitle(), pageNumber, adjustedPageNumber);
+                
+                PdfPCell pageCell = new PdfPCell(new Phrase(
+                    adjustedPageNumber > 0 ? String.valueOf(adjustedPageNumber) : "N/A",
+                    new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(51, 51, 51))
+                ));
+                pageCell.setPadding(8);
+                pageCell.setBorder(Rectangle.BOTTOM);
+                pageCell.setBorderColor(new Color(204, 204, 204));
+                pageCell.setBackgroundColor(new Color(250, 250, 250));
+                pageCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                tocTable.addCell(pageCell);
+            }
 
-            journalTable.addCell(backgroundCell);
-            document.add(journalTable);
+            document.add(tocTable);
         }
+
         document.close();
+        log.info("User details PDF completed");
+        return baos;
     }
 
-    private void addTableRow(PdfPTable table, String key, String value, Font keyFont, Font valueFont) {
-        PdfPCell keyCell = new PdfPCell(new Phrase(key, keyFont));
-        keyCell.setBorder(Rectangle.BOX);
-        keyCell.setBackgroundColor(new Color(240, 240, 240));
-        keyCell.setPadding(4);
+    private void mergePDFs(HttpServletResponse response, ByteArrayOutputStream userDetailsPdf, ByteArrayOutputStream journalEntriesPdf) throws IOException {
+        Document document = new Document();
+        PdfCopy copy = new PdfCopy(document, response.getOutputStream());
+        document.open();
 
-        PdfPCell valueCell = new PdfPCell(new Phrase(value, valueFont));
-        valueCell.setBorder(Rectangle.BOX);
-        valueCell.setBackgroundColor(new Color(240, 240, 240));
-        valueCell.setPadding(4);
+        PdfReader reader1 = new PdfReader(userDetailsPdf.toByteArray());
+        PdfReader reader2 = new PdfReader(journalEntriesPdf.toByteArray());
+
+        int n1 = reader1.getNumberOfPages();
+        int n2 = reader2.getNumberOfPages();
+
+        log.info("Merging PDFs: User Details has {} pages, Journal Entries has {} pages", n1, n2);
+
+        for (int i = 1; i <= n1; i++) {
+            copy.addPage(copy.getImportedPage(reader1, i));
+        }
+
+        for (int i = 1; i <= n2; i++) {
+            copy.addPage(copy.getImportedPage(reader2, i));
+        }
+
+        document.close();
+        reader1.close();
+        reader2.close();
+    }
+
+    private void addBankStyleRow(PdfPTable table, String key, String value) {
+        PdfPCell keyCell = new PdfPCell(new Phrase(key, 
+            new Font(Font.HELVETICA, 10, Font.BOLD, new Color(51, 51, 51))));
+        keyCell.setPadding(8);
+        keyCell.setBackgroundColor(new Color(250, 250, 250));
+        keyCell.setBorder(Rectangle.BOTTOM);
+        keyCell.setBorderColor(new Color(204, 204, 204));
+
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, 
+            new Font(Font.HELVETICA, 10, Font.NORMAL, new Color(51, 51, 51))));
+        valueCell.setPadding(8);
+        valueCell.setBackgroundColor(Color.WHITE);
+        valueCell.setBorder(Rectangle.BOTTOM);
+        valueCell.setBorderColor(new Color(204, 204, 204));
 
         table.addCell(keyCell);
         table.addCell(valueCell);
+    }
+
+    private void addTableHeaderCell(PdfPTable table, String text, Color color) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, 
+            new Font(Font.HELVETICA, 10, Font.BOLD, Color.WHITE)));
+        cell.setBackgroundColor(color);
+        cell.setPadding(8);
+        cell.setBorder(Rectangle.NO_BORDER);
+        table.addCell(cell);
+    }
+}
+
+class RomanNumeralPageEventHelper extends PdfPageEventHelper {
+    @Override
+    public void onEndPage(PdfWriter writer, Document document) {
+        try {
+            PdfContentByte canvas = writer.getDirectContent();
+            canvas.setColorStroke(new Color(0, 51, 102));
+            canvas.setLineWidth(1f);
+            canvas.moveTo(40, 40);
+            canvas.lineTo(555, 40);
+            canvas.stroke();
+            
+            canvas.beginText();
+            canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED), 8);
+            canvas.setColorFill(new Color(102, 102, 102));
+            canvas.showTextAligned(Element.ALIGN_CENTER, "Page " + toRoman(writer.getPageNumber()), 297.5f, 30, 0);
+            canvas.endText();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String toRoman(int number) {
+        String[] romanNumerals = {"I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"};
+        if (number <= 0 || number > 10) return String.valueOf(number);
+        return romanNumerals[number - 1];
+    }
+}
+
+class RegularPageEventHelper extends PdfPageEventHelper {
+    @Override
+    public void onEndPage(PdfWriter writer, Document document) {
+        try {
+            PdfContentByte canvas = writer.getDirectContent();
+            canvas.setColorStroke(new Color(0, 51, 102));
+            canvas.setLineWidth(1f);
+            canvas.moveTo(40, 40);
+            canvas.lineTo(555, 40);
+            canvas.stroke();
+            
+            canvas.beginText();
+            canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED), 8);
+            canvas.setColorFill(new Color(102, 102, 102));
+            canvas.showTextAligned(Element.ALIGN_CENTER, "Page " + writer.getPageNumber(), 297.5f, 30, 0);
+            canvas.endText();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
