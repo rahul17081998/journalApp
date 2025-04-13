@@ -53,6 +53,35 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
         writer.setPageEvent(new RegularPageEventHelper());
         document.open();
 
+        // Add header background and text
+        PdfContentByte canvas = writer.getDirectContent();
+        canvas.setColorFill(new Color(0, 51, 102));
+        canvas.rectangle(0, PageSize.A4.getHeight() - 40, PageSize.A4.getWidth(), 90);
+        canvas.fill();
+
+        canvas.setColorFill(Color.WHITE);
+        canvas.setFontAndSize(BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED), 24);
+        canvas.beginText();
+        canvas.showTextAligned(Element.ALIGN_CENTER, "Journals", PageSize.A4.getWidth() / 2, PageSize.A4.getHeight() - 30, 0);
+        canvas.endText();
+
+        // Add decorative line
+        canvas.setColorStroke(new Color(0, 51, 102));
+        canvas.setLineWidth(2f);
+        canvas.moveTo(40, PageSize.A4.getHeight() - 60);
+        canvas.lineTo(PageSize.A4.getWidth() - 80, PageSize.A4.getHeight() - 60);
+        canvas.stroke();
+
+
+//        // Add Journal heading
+//        Font sectionFont = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(0, 51, 102));
+//        Paragraph journalHeading = new Paragraph("Journal", sectionFont);
+//        journalHeading.setSpacingBefore(30);
+//        journalHeading.setSpacingAfter(20);
+//        journalHeading.setAlignment(Element.ALIGN_CENTER);
+//        document.add(journalHeading);
+
+
         if (user.getJournalEntities() != null && !user.getJournalEntities().isEmpty()) {
             for (var journal : user.getJournalEntities()) {
                 // Get the current page number before adding the journal
@@ -70,6 +99,11 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
                     journal.getTitle(),
                     new Font(Font.HELVETICA, 14, Font.BOLD, new Color(0, 51, 102))
                 ));
+
+                // Get the page number after adding the journal Title
+                int newPageNumber = writer.getPageNumber();
+                log.info("Page number after adding journal '{}': {}", journal.getTitle(), newPageNumber);
+
                 titleCell.setPadding(8);
                 titleCell.setBorder(Rectangle.NO_BORDER);
                 titleCell.setBackgroundColor(new Color(250, 250, 250));
@@ -106,11 +140,8 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
                 journalCard.addCell(contentCell);
 
                 document.add(journalCard);
-                
-                // Get the page number after adding the journal
-                int newPageNumber = writer.getPageNumber();
-                log.info("Page number after adding journal '{}': {}", journal.getTitle(), newPageNumber);
-                
+
+
                 // Store the page number for this journal
                 journalPageNumbers.put(journal.getTitle(), newPageNumber);
             }
