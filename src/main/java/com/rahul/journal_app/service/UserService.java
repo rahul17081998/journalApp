@@ -1,10 +1,13 @@
 package com.rahul.journal_app.service;
 
 import com.rahul.journal_app.constants.Constants;
+import com.rahul.journal_app.constants.ErrorCode;
+import com.rahul.journal_app.entity.Attachment;
 import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.entity.UserOtp;
 import com.rahul.journal_app.enums.Gender;
+import com.rahul.journal_app.exception.BadRequestException;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.repository.JournalEntityRepository;
 import com.rahul.journal_app.repository.UserOtpRepository;
@@ -17,11 +20,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 
@@ -43,7 +48,8 @@ public class UserService {
 
     @Autowired
     private EmailService emailService;
-
+    @Autowired
+    private AttachmentService attachmentService;
     @Autowired
     private UserOtpRepository userOtpRepository;
 
@@ -99,51 +105,59 @@ public class UserService {
     }
 
 
-    public ResponseEntity<?> updateUser(String username, User user){
+    public UserDto updateUser(String username, User user) throws Exception {
 
-        if(user.getPhoneNo()!=null && !util.isValidPhoneNumber(user.getPhoneNo())){
-            return new ResponseEntity<>(Constants.INVALID_PHONE_NUMBER, HttpStatus.BAD_REQUEST);
-        }else if(user.getDateOfBirth()!=null && !util.isValidDateOfBirth(user.getDateOfBirth().toString(), "yyyy-MM-dd")){
-            return new ResponseEntity<>(Constants.INVALID_DATE_OF_BIRTH, HttpStatus.BAD_REQUEST);
-        }else if(user.getGender()!=null && !user.getGender().toUpperCase().equals(Gender.MALE.toString()) && !user.getGender().toUpperCase().equals(Gender.FEMALE.toString())){
-            return new ResponseEntity<>(Constants.INVALID_GENDER, HttpStatus.BAD_REQUEST);
+// Validation
+        if (user.getPhoneNo() != null && !util.isValidPhoneNumber(user.getPhoneNo())) {
+            throw new BadRequestException(ErrorCode.INVALID_PHONE_NUMBER);
+        }
+
+        if (user.getDateOfBirth() != null && !util.isValidDateOfBirth(user.getDateOfBirth().toString(), "yyyy-MM-dd")) {
+            throw new BadRequestException(ErrorCode.INVALID_DATE_OF_BIRTH);
+        }
+
+        if (user.getGender() != null &&
+                !user.getGender().equalsIgnoreCase(Gender.MALE.toString()) &&
+                !user.getGender().equalsIgnoreCase(Gender.FEMALE.toString())) {
+            throw new BadRequestException(ErrorCode.INVALID_GENDER);
         }
 
         try {
             User savedUserInfo = findByUserName(username);
-            if (savedUserInfo != null) {
-
-                savedUserInfo.setFirstName((user.getFirstName() != null && !user.getFirstName().equals("")) ? user.getFirstName() : savedUserInfo.getFirstName());
-                savedUserInfo.setLastName((user.getLastName() != null && !user.getLastName().equals("")) ? user.getLastName() : savedUserInfo.getLastName());
-                savedUserInfo.setCity((user.getCity() != null && !user.getCity().equals("")) ? user.getCity() : savedUserInfo.getCity());
-                savedUserInfo.setCountry(user.getCountry()!=null? user.getCountry():savedUserInfo.getCountry());
-                savedUserInfo.setPhoneNo(user.getPhoneNo()!=null? user.getPhoneNo():savedUserInfo.getPhoneNo());
-                savedUserInfo.setPinCode(user.getPinCode()!=null? user.getPinCode():savedUserInfo.getPinCode());
-                savedUserInfo.setGender(user.getGender()!=null? user.getGender().toUpperCase():savedUserInfo.getGender());
-                savedUserInfo.setDateOfBirth(user.getDateOfBirth()!=null? user.getDateOfBirth():savedUserInfo.getDateOfBirth());
-                savedUserInfo.setAlternateEmail(user.getAlternateEmail()!=null?user.getAlternateEmail(): savedUserInfo.getAlternateEmail());
-                savedUserInfo.setAlternatePhone(user.getAlternatePhone()!=null?user.getAlternatePhone(): savedUserInfo.getAlternateEmail());
-                savedUserInfo.setCompany(user.getCompany()!=null?user.getCompany():savedUserInfo.getCompany());
-                savedUserInfo.setAddress(user.getAddress()!=null?user.getAddress():savedUserInfo.getAddress());
-                savedUserInfo.setBloodGroup(user.getBloodGroup()!=null?user.getBloodGroup():savedUserInfo.getBloodGroup());
-                savedUserInfo.setEmergencyContact(user.getEmergencyContact()!=null?user.getEmergencyContact():savedUserInfo.getEmergencyContact());
-                savedUserInfo.setLanguages(user.getLanguages()!=null?user.getLanguages():savedUserInfo.getLanguages());
-                savedUserInfo.setMaritalStatus(user.getMaritalStatus()!=null?user.getMaritalStatus():savedUserInfo.getMaritalStatus());
-                savedUserInfo.setPreferences(user.getPreferences()!=null?user.getPreferences():savedUserInfo.getPreferences());
-                savedUserInfo.setSkills(user.getSkills()!=null?user.getSkills():savedUserInfo.getSkills());
-                savedUserInfo.setSocialProfiles(user.getSocialProfiles()!=null?user.getSocialProfiles():savedUserInfo.getSocialProfiles());
-                savedUserInfo.setEmail(user.getUserName()!=null?user.getUserName():savedUserInfo.getUserName());
-                savedUserInfo.setOccupation(user.getOccupation()!=null?user.getOccupation():savedUserInfo.getOccupation());
-                savedUserInfo.setInterests(user.getInterests()!=null?user.getInterests():savedUserInfo.getInterests());
-                savedUserInfo.setEducation(user.getEducation()!=null?user.getEducation():savedUserInfo.getEducation());
-
+            if (savedUserInfo == null) {
+                throw new UsernameNotFoundException("User not found with username: " + username);
             }
+
+            savedUserInfo.setFirstName((user.getFirstName() != null && !user.getFirstName().equals("")) ? user.getFirstName() : savedUserInfo.getFirstName());
+            savedUserInfo.setLastName((user.getLastName() != null && !user.getLastName().equals("")) ? user.getLastName() : savedUserInfo.getLastName());
+            savedUserInfo.setCity((user.getCity() != null && !user.getCity().equals("")) ? user.getCity() : savedUserInfo.getCity());
+            savedUserInfo.setCountry(user.getCountry()!=null? user.getCountry():savedUserInfo.getCountry());
+            savedUserInfo.setPhoneNo(user.getPhoneNo()!=null? user.getPhoneNo():savedUserInfo.getPhoneNo());
+            savedUserInfo.setPinCode(user.getPinCode()!=null? user.getPinCode():savedUserInfo.getPinCode());
+            savedUserInfo.setGender(user.getGender()!=null? user.getGender().toUpperCase():savedUserInfo.getGender());
+            savedUserInfo.setDateOfBirth(user.getDateOfBirth()!=null? user.getDateOfBirth():savedUserInfo.getDateOfBirth());
+            savedUserInfo.setAlternateEmail(user.getAlternateEmail()!=null?user.getAlternateEmail(): savedUserInfo.getAlternateEmail());
+            savedUserInfo.setAlternatePhone(user.getAlternatePhone()!=null?user.getAlternatePhone(): savedUserInfo.getAlternateEmail());
+            savedUserInfo.setCompany(user.getCompany()!=null?user.getCompany():savedUserInfo.getCompany());
+            savedUserInfo.setAddress(user.getAddress()!=null?user.getAddress():savedUserInfo.getAddress());
+            savedUserInfo.setBloodGroup(user.getBloodGroup()!=null?user.getBloodGroup():savedUserInfo.getBloodGroup());
+            savedUserInfo.setEmergencyContact(user.getEmergencyContact()!=null?user.getEmergencyContact():savedUserInfo.getEmergencyContact());
+            savedUserInfo.setLanguages(user.getLanguages()!=null?user.getLanguages():savedUserInfo.getLanguages());
+            savedUserInfo.setMaritalStatus(user.getMaritalStatus()!=null?user.getMaritalStatus():savedUserInfo.getMaritalStatus());
+            savedUserInfo.setPreferences(user.getPreferences()!=null?user.getPreferences():savedUserInfo.getPreferences());
+            savedUserInfo.setSkills(user.getSkills()!=null?user.getSkills():savedUserInfo.getSkills());
+            savedUserInfo.setSocialProfiles(user.getSocialProfiles()!=null?user.getSocialProfiles():savedUserInfo.getSocialProfiles());
+            savedUserInfo.setEmail(user.getUserName()!=null?user.getUserName():savedUserInfo.getUserName());
+            savedUserInfo.setOccupation(user.getOccupation()!=null?user.getOccupation():savedUserInfo.getOccupation());
+            savedUserInfo.setInterests(user.getInterests()!=null?user.getInterests():savedUserInfo.getInterests());
+            savedUserInfo.setEducation(user.getEducation()!=null?user.getEducation():savedUserInfo.getEducation());
+
+
             User updatedUser = userRepository.save(savedUserInfo);
-            UserDto updatedUserDto=convertUserToUserDto(updatedUser);
-            return new ResponseEntity<>(updatedUserDto, HttpStatus.OK);
+            return convertUserToUserDto(updatedUser);
         }catch (Exception e){
-            log.info("Error while updating user info in database: {}", e.getMessage(), e);
-            throw new RuntimeException(e.getMessage());
+            log.error("Error while updating user info in database: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to update user information", e);
         }
     }
 
@@ -368,13 +382,16 @@ public class UserService {
     public UserDto getUserDetail(String username) {
         try {
             User user= userRepository.findByUserName(username);
+            if (user == null) {
+                log.warn("User not found with username: {}", username);
+                throw new UsernameNotFoundException("User not found with username: " + username);
+            }
             UserDto userDtoResponse=convertUserToUserDto(user);
             return userDtoResponse;
         }catch (Exception e){
             log.info("Some Error get during extracting user details:  {}", e.getMessage());
             throw new RuntimeException(e.getMessage());
         }
-
     }
 
     @Transactional
@@ -516,22 +533,40 @@ public class UserService {
                 .count();
     }
 
-    public ResponseEntity<?> updateUserProfilePhoto(String username, String downloadURI) {
+    public UserDto updateUserProfilePhoto(String username, MultipartFile file) {
         log.info("Updating user's profile photo for username: {}", username);
+
         try {
             User savedUserInfo = findByUserName(username);
-            if (savedUserInfo != null) {
-                savedUserInfo.setProfileImageUrl(downloadURI);
-                User updatedUser = userRepository.save(savedUserInfo);
-                UserDto updatedUserDto = convertUserToUserDto(updatedUser);
-                return new ResponseEntity<>(updatedUserDto, HttpStatus.OK);
-            } else {
+            if(savedUserInfo==null){
                 log.warn("User not found with username: {}", username);
-                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+                throw new UsernameNotFoundException("User not found with username "+ username);
             }
+
+            // Delete existing profile photo if any
+            String existingProfileImageId = savedUserInfo.getProfileImageUrl();
+            if (existingProfileImageId != null && !existingProfileImageId.isEmpty()) {
+                try {
+                    attachmentService.deleteAttachment(existingProfileImageId);
+                    log.info("Deleted old profile photo with id: {}", existingProfileImageId);
+                } catch (Exception e) {
+                    log.warn("Failed to delete existing profile photo with id: {}. Continuing with update.", existingProfileImageId, e);
+                }
+            }
+
+            // Save new attachment
+            Attachment attachment = attachmentService.saveAttachment(file);
+            savedUserInfo.setProfileImageUrl(attachment.getId().toString());
+
+            // Save updated user
+            User updatedUser = userRepository.save(savedUserInfo);
+            return convertUserToUserDto(updatedUser);
+
+        } catch (UsernameNotFoundException ex) {
+            throw ex; // Keep original exception intact
         } catch (Exception e) {
             log.error("Error while updating user info in database: {}", e.getMessage(), e);
-            return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new RuntimeException("Failed to update user profile photo", e);
         }
     }
 }

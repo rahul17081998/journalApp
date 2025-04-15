@@ -2,9 +2,9 @@ package com.rahul.journal_app.controller;
 
 import com.rahul.journal_app.api.response.WeatherResponse;
 import com.rahul.journal_app.constants.Constants;
-import com.rahul.journal_app.entity.Attachment;
+import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.User;
-import com.rahul.journal_app.model.ResponseData;
+import com.rahul.journal_app.model.ApiResponse;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.service.AttachmentService;
 import com.rahul.journal_app.service.UserService;
@@ -19,7 +19,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 
 @RestController
@@ -45,18 +44,11 @@ public class UserController {
 
 
     @PutMapping()
-    public ResponseEntity<?> updateUser(@RequestBody User user){
+    public ResponseEntity<ApiResponse<UserDto>> updateUser(@RequestBody User user) throws Exception {
         logger.info("> User Update begin...");
-        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
-        String username= authentication.getName();
-        try {
-            ResponseEntity<?> response=userService.updateUser(username, user);
-            return response;
-        }catch (Exception e){
-            logger.info("Exception during updating user information: {}", e.getMessage(), e);
-        }
-        return new ResponseEntity<>(Constants.USER_NOT_UPDATED, HttpStatus.BAD_REQUEST);
-
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        UserDto userDtoResponse = userService.updateUser(username, user);
+        return ResponseEntity.ok(ApiResponse.success(userDtoResponse, Constants.USER_DETAILS_UPDATED_SUCCESSFULLY));
     }
 
     @DeleteMapping()
@@ -90,32 +82,31 @@ public class UserController {
 
 
     @GetMapping("/user-details")
-    public ResponseEntity<?> getUserDetails(){
+    public ResponseEntity<ApiResponse<UserDto>> getUserDetails(){
         try{
             Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
             String username= authentication.getName();
-            UserDto user = userService.getUserDetail(username);
-            return new ResponseEntity<>(user, HttpStatus.OK);
+            UserDto userDto = userService.getUserDetail(username);
+            return ResponseEntity.ok(ApiResponse.success(userDto, Constants.USER_DETAILS_FETCHED_SUCCESSFULLY_MSG));
         }catch (Exception e){
-            return new ResponseEntity<>("User Not Found: ", HttpStatus.OK);
+            HttpStatus status = HttpStatus.NOT_FOUND;
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, e.getMessage(), status));
         }
     }
 
     @PostMapping("/upload-profile-photo")
-    public ResponseEntity<?> uploadProfilePhoto(@RequestParam("file") MultipartFile file) throws Exception {
-        logger.info("> User Update begin...");
+    public ResponseEntity<ApiResponse<UserDto>> uploadProfilePhoto(@RequestParam("file") MultipartFile file) throws Exception {
+        logger.info("Profile picture updating... ");
         Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
         String username= authentication.getName();
         try {
-            Attachment attachment=null;
-            String downloadURI = "";
-            attachment = attachmentService.saveAttachment(file);
-            downloadURI=attachment.getId().toString();
-            ResponseEntity<?> response=userService.updateUserProfilePhoto(username, downloadURI);
-            return response;
+            UserDto userDtoResponse = userService.updateUserProfilePhoto(username, file);
+            return ResponseEntity.ok(ApiResponse.success(userDtoResponse, Constants.USER_PROFILE_PICTURE_UPDATED_SUCCESSFULLY_MSG));
         }catch (Exception e){
             logger.info("Exception during updating user information: {}", e.getMessage(), e);
-        }
-        return new ResponseEntity<>(Constants.USER_NOT_UPDATED, HttpStatus.BAD_REQUEST);
+            HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.error(ErrorCode.PROFILE_PHOTO_UPDATE_FAILED, e.getMessage(), status));}
     }
 }
