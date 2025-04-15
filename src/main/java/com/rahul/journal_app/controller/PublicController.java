@@ -82,11 +82,15 @@ public class PublicController {
         if(dbuser!=null){
             return new ResponseEntity<>(Constants.USER_ALREADY_EXIST, HttpStatus.BAD_REQUEST);
         }
+
+        if(user.getPassword()==null || user.getPassword().isEmpty()){
+            return new ResponseEntity<>(Constants.PASSWORD_CAN_NOT_BE_NULL_OR_EMPTY, HttpStatus.BAD_REQUEST);
+        }
         try {
-            userService.saveNewUser(user);
+             userService.saveNewUser(user);
         }catch (Exception e){
             log.info("Exception: {}",e.getMessage());
-            return new ResponseEntity<>(Constants.EXCEPTION_OCCURRED_DURING_USER_REGISTRATION, HttpStatus.OK);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.OK);
         }
         return new ResponseEntity<>(Constants.USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY+user.getUserName(), HttpStatus.OK);
     }

@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 
 import java.security.SecureRandom;
@@ -67,6 +68,9 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         if (user.getUserCreatedDate() == null) {
             user.setUserCreatedDate(LocalDateTime.now());
+        }
+        if(user.getEmail()==null || user.getEmail().isEmpty()){
+            user.setEmail(user.getUserName());
         }
         user.setUserUpdatedDate(LocalDateTime.now());
         User savedUser=userRepository.save(user);
@@ -117,6 +121,22 @@ public class UserService {
                 savedUserInfo.setPinCode(user.getPinCode()!=null? user.getPinCode():savedUserInfo.getPinCode());
                 savedUserInfo.setGender(user.getGender()!=null? user.getGender().toUpperCase():savedUserInfo.getGender());
                 savedUserInfo.setDateOfBirth(user.getDateOfBirth()!=null? user.getDateOfBirth():savedUserInfo.getDateOfBirth());
+                savedUserInfo.setAlternateEmail(user.getAlternateEmail()!=null?user.getAlternateEmail(): savedUserInfo.getAlternateEmail());
+                savedUserInfo.setAlternatePhone(user.getAlternatePhone()!=null?user.getAlternatePhone(): savedUserInfo.getAlternateEmail());
+                savedUserInfo.setCompany(user.getCompany()!=null?user.getCompany():savedUserInfo.getCompany());
+                savedUserInfo.setAddress(user.getAddress()!=null?user.getAddress():savedUserInfo.getAddress());
+                savedUserInfo.setBloodGroup(user.getBloodGroup()!=null?user.getBloodGroup():savedUserInfo.getBloodGroup());
+                savedUserInfo.setEmergencyContact(user.getEmergencyContact()!=null?user.getEmergencyContact():savedUserInfo.getEmergencyContact());
+                savedUserInfo.setLanguages(user.getLanguages()!=null?user.getLanguages():savedUserInfo.getLanguages());
+                savedUserInfo.setMaritalStatus(user.getMaritalStatus()!=null?user.getMaritalStatus():savedUserInfo.getMaritalStatus());
+                savedUserInfo.setPreferences(user.getPreferences()!=null?user.getPreferences():savedUserInfo.getPreferences());
+                savedUserInfo.setSkills(user.getSkills()!=null?user.getSkills():savedUserInfo.getSkills());
+                savedUserInfo.setSocialProfiles(user.getSocialProfiles()!=null?user.getSocialProfiles():savedUserInfo.getSocialProfiles());
+                savedUserInfo.setEmail(user.getUserName()!=null?user.getUserName():savedUserInfo.getUserName());
+                savedUserInfo.setOccupation(user.getOccupation()!=null?user.getOccupation():savedUserInfo.getOccupation());
+                savedUserInfo.setInterests(user.getInterests()!=null?user.getInterests():savedUserInfo.getInterests());
+                savedUserInfo.setEducation(user.getEducation()!=null?user.getEducation():savedUserInfo.getEducation());
+
             }
             User updatedUser = userRepository.save(savedUserInfo);
             UserDto updatedUserDto=convertUserToUserDto(updatedUser);
@@ -143,6 +163,26 @@ public class UserService {
     }
 
     private UserDto convertUserToUserDto(User user){
+
+        List<com.rahul.journal_app.model.Education> educationDtoList=new ArrayList<>();
+        if(user.getEducation()!=null && !user.getEducation().isEmpty()){
+            educationDtoList= user.getEducation()
+                    .stream()
+                    .map(this::convertEducationEntityToDto)
+                    .collect(Collectors.toList());
+        }
+
+        String profileImageUrlDownload = "";
+        if(user.getProfileImageUrl()!=null && !user.getProfileImageUrl().isEmpty()){
+            profileImageUrlDownload= ServletUriComponentsBuilder.fromCurrentContextPath()
+                    .path("/attachment/download/")
+                    .path(user.getProfileImageUrl())
+                    .toUriString();
+        }
+        log.info("hi");
+
+
+
         UserDto userDto = UserDto.builder()
                 .id(user.getId())
                 .userName(user.getUserName())
@@ -160,8 +200,87 @@ public class UserService {
                 .sentimentAnalysis(user.isSentimentAnalysis())
                 .userCreatedDate(user.getUserCreatedDate())
                 .userUpdatedDate(user.getUserUpdatedDate())
+                .profileImageUrl(profileImageUrlDownload.isEmpty()?user.getProfileImageUrl():profileImageUrlDownload)
+                .maritalStatus(user.getMaritalStatus())
+                .occupation(user.getOccupation())
+                .company(user.getCompany())
+                .education(educationDtoList)
+                .alternatePhone(user.getAlternatePhone())
+                .email(user.getEmail())
+                .alternateEmail(user.getAlternateEmail())
+                .address(convertAddressEntityToDto(user.getAddress()))
+                .socialProfiles(convertSocialProfilesEntityToDto(user.getSocialProfiles()))
+                .languages(user.getLanguages())
+                .skills(user.getSkills())
+                .interests(user.getInterests())
+                .emergencyContact(convertEmergencyContactToDto(user.getEmergencyContact()))
+                .bloodGroup(user.getBloodGroup())
+                .preferences(convertPreferencesToDto(user.getPreferences()))
                 .build();
         return userDto;
+    }
+
+    private com.rahul.journal_app.model.Education convertEducationEntityToDto(com.rahul.journal_app.entity.Education entity) {
+        if(entity==null) return null;
+        return com.rahul.journal_app.model.Education.builder()
+                .degree(entity.getDegree())
+                .institution(entity.getInstitution())
+                .year(entity.getYear())
+                .marksPercentage(entity.getMarksPercentage())
+                .build();
+    }
+
+    private com.rahul.journal_app.model.Address convertAddressEntityToDto(com.rahul.journal_app.entity.Address entity){
+        if(entity==null) return null;
+        return com.rahul.journal_app.model.Address.builder()
+                .street(entity.getStreet())
+                .city(entity.getCity())
+                .state(entity.getState())
+                .country(entity.getCountry())
+                .pinCode(entity.getPinCode())
+                .build();
+
+    }
+
+    private com.rahul.journal_app.model.SocialProfiles convertSocialProfilesEntityToDto(com.rahul.journal_app.entity.SocialProfiles entity){
+        if(entity==null) return null;
+        return com.rahul.journal_app.model.SocialProfiles.builder()
+                .facebook(entity.getFacebook())
+                .github(entity.getGithub())
+                .instagram(entity.getInstagram())
+                .linkedin(entity.getLinkedin())
+                .medium(entity.getMedium())
+                .stackoverflow(entity.getStackoverflow())
+                .twitter(entity.getTwitter())
+                .youtube(entity.getYoutube())
+                .website(entity.getWebsite())
+                .build();
+    }
+
+    private com.rahul.journal_app.model.EmergencyContact convertEmergencyContactToDto(com.rahul.journal_app.entity.EmergencyContact entity){
+        if(entity==null) return null;
+        return com.rahul.journal_app.model.EmergencyContact.builder()
+                .name(entity.getName())
+                .relation(entity.getRelation())
+                .phone(entity.getPhone())
+                .build();
+
+    }
+
+    private com.rahul.journal_app.model.Preferences convertPreferencesToDto(com.rahul.journal_app.entity.Preferences entity){
+        if(entity==null) return null;
+        return com.rahul.journal_app.model.Preferences.builder()
+                .theme(entity.getTheme())
+                .darkMode(entity.isDarkMode())
+                .dateFormat(entity.getDateFormat())
+                .emailNotifications(entity.isEmailNotifications())
+                .notificationEnabled(entity.isNotificationEnabled())
+                .smsNotifications(entity.isSmsNotifications())
+                .language(entity.getLanguage())
+                .timeFormat(entity.getTimeFormat())
+                .timezone(entity.getTimezone())
+                .build();
+
     }
 
     public Optional<User> findUserById(ObjectId id) {
@@ -395,5 +514,24 @@ public class UserService {
         return (double) userRepository.findAll().stream()
                 .filter(user -> user.getRoles().contains("ADMIN"))
                 .count();
+    }
+
+    public ResponseEntity<?> updateUserProfilePhoto(String username, String downloadURI) {
+        log.info("Updating user's profile photo for username: {}", username);
+        try {
+            User savedUserInfo = findByUserName(username);
+            if (savedUserInfo != null) {
+                savedUserInfo.setProfileImageUrl(downloadURI);
+                User updatedUser = userRepository.save(savedUserInfo);
+                UserDto updatedUserDto = convertUserToUserDto(updatedUser);
+                return new ResponseEntity<>(updatedUserDto, HttpStatus.OK);
+            } else {
+                log.warn("User not found with username: {}", username);
+                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+            }
+        } catch (Exception e) {
+            log.error("Error while updating user info in database: {}", e.getMessage(), e);
+            return new ResponseEntity<>("Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }

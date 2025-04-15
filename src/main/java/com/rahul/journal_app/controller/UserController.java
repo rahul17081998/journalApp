@@ -2,8 +2,11 @@ package com.rahul.journal_app.controller;
 
 import com.rahul.journal_app.api.response.WeatherResponse;
 import com.rahul.journal_app.constants.Constants;
+import com.rahul.journal_app.entity.Attachment;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.model.ResponseData;
 import com.rahul.journal_app.model.UserDto;
+import com.rahul.journal_app.service.AttachmentService;
 import com.rahul.journal_app.service.UserService;
 import com.rahul.journal_app.service.WeatherService;
 import com.rahul.journal_app.utils.Util;
@@ -15,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 
 @RestController
@@ -27,12 +32,15 @@ public class UserController {
 
     private final WeatherService weatherService;
 
+    private final AttachmentService attachmentService;
+
     @Autowired
     private Util util;
 
-    public UserController(UserService userService, WeatherService weatherService) {
+    public UserController(UserService userService, AttachmentController attachmentController, WeatherService weatherService, AttachmentService attachmentService) {
         this.userService = userService;
         this.weatherService = weatherService;
+        this.attachmentService = attachmentService;
     }
 
 
@@ -91,5 +99,23 @@ public class UserController {
         }catch (Exception e){
             return new ResponseEntity<>("User Not Found: ", HttpStatus.OK);
         }
+    }
+
+    @PostMapping("/upload-profile-photo")
+    public ResponseEntity<?> uploadProfilePhoto(@RequestParam("file") MultipartFile file) throws Exception {
+        logger.info("> User Update begin...");
+        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
+        String username= authentication.getName();
+        try {
+            Attachment attachment=null;
+            String downloadURI = "";
+            attachment = attachmentService.saveAttachment(file);
+            downloadURI=attachment.getId().toString();
+            ResponseEntity<?> response=userService.updateUserProfilePhoto(username, downloadURI);
+            return response;
+        }catch (Exception e){
+            logger.info("Exception during updating user information: {}", e.getMessage(), e);
+        }
+        return new ResponseEntity<>(Constants.USER_NOT_UPDATED, HttpStatus.BAD_REQUEST);
     }
 }
