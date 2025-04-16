@@ -11,6 +11,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 public class WeatherResponse{
+
+    private Location location;
     private Current current;
 
 
@@ -24,6 +26,28 @@ public class WeatherResponse{
         private int feelslike;
 
     }
+
+    @Getter
+    @Setter
+    public class Location{
+        private String name;
+        private String country;
+        private String region;
+        private String timezone_id;
+        private String localtime;
+    }
+
+
+//    location": {
+//            "name": "Bhopal",
+//            "country": "India",
+//            "region": "Madhya Pradesh",
+//            "lat": "23.267",
+//            "lon": "77.400",
+//            "timezone_id": "Asia/Kolkata",
+//            "localtime": "2025-04-16 10:05",
+//            "localtime_epoch": 1744797900,
+//            "utc_offset": "5.50"
 
 
 

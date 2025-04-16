@@ -5,6 +5,7 @@ import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.model.ApiResponse;
+import com.rahul.journal_app.model.GreetingResponse;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.service.AttachmentService;
 import com.rahul.journal_app.service.UserService;
@@ -61,23 +62,34 @@ public class UserController {
 
 
     @GetMapping()
-    public ResponseEntity<?> greeting(){
+    public ResponseEntity<ApiResponse<WeatherResponse>> greeting(){
         Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
         String username= authentication.getName();
-        User user=userService.findByUserName(username);
-        String city=user.getCity();
-        String feelsLikeTemp="NA";
-        String firstname = user.getUserName()==null?"User":util.capitalizeFirstChar(user.getFirstName());
-        if(city ==null || city.equals("")){
-            return new ResponseEntity<>("The city field for the user is either empty or null.", HttpStatus.NOT_FOUND);
-        }
-        WeatherResponse weatherResponse=weatherService.getWeather(city);
-        if(weatherResponse!=null){
-            if(weatherResponse.getCurrent()!=null){
-                feelsLikeTemp= String.valueOf(weatherResponse.getCurrent().getFeelslike());
+        String city="";
+        try{
+            User user=userService.findByUserName(username);
+            city=user.getCity();
+            String firstname = user.getUserName()==null?"User":util.capitalizeFirstChar(user.getFirstName());
+            if(city == null || city.trim().isEmpty()){
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error(ErrorCode.CITY_FIELD_EMPTY_OR_NULL, null, HttpStatus.NOT_FOUND));
             }
+            WeatherResponse weatherResponse=weatherService.getWeather(city);
+            if (weatherResponse != null && weatherResponse.getCurrent() != null) {
+                String feelsLikeTemp = String.valueOf(weatherResponse.getCurrent().getFeelslike());
+                GreetingResponse greetingResponse = new GreetingResponse("Hello " + firstname + ", the weather in " + city + " feels like " + feelsLikeTemp);
+                return ResponseEntity.ok(ApiResponse.success(weatherResponse, Constants.WEATHER_FETCH_SUCCESSFULLY_MSG));
+            }
+            // If weatherResponse or current is null
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(ErrorCode.WEATHER_REPORT_FETCH_FAILED, "Incomplete weather data", HttpStatus.INTERNAL_SERVER_ERROR));
+
+        }catch (Exception e){
+            logger.info("Failed to fetch weather report for the provided city {}", city);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(ErrorCode.WEATHER_REPORT_FETCH_FAILED, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+
         }
-        return new ResponseEntity<>("Hello " + firstname + ", the weather in " + city + " feels like " + feelsLikeTemp + ".", HttpStatus.OK);
     }
 
 

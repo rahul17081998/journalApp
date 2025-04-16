@@ -6,7 +6,9 @@ public enum ErrorCode {
     USER_NOT_FOUND("ERR_USER_NOT_FOUND", "User not found"),
     INVALID_PHONE_NUMBER("ERR_INVALID_PHONE", "Invalid phone number"),
     INVALID_DATE_OF_BIRTH("ERR_INVALID_DOB", "Invalid date of birth"),
-    INVALID_GENDER("ERR_INVALID_GENDER", "Invalid gender")
+    INVALID_GENDER("ERR_INVALID_GENDER", "Invalid gender"),
+    CITY_FIELD_EMPTY_OR_NULL("ERR_INVALID_CITY","The city field for the user is either empty or null."),
+    WEATHER_REPORT_FETCH_FAILED("ERR_WEATHER_REPORT_FETCH_FAILED", "Failed to fetch weather report for the provided city")
 
     ;
 

@@ -45,7 +45,7 @@ public interface Constants {
     // Success messages
     public static final String USER_PROFILE_PICTURE_UPDATED_SUCCESSFULLY_MSG = "User profile picture updated successfully";
     public static final String USER_DETAILS_FETCHED_SUCCESSFULLY_MSG = "User details fetched successfully";
-
+    public static final String WEATHER_FETCH_SUCCESSFULLY_MSG = "Weather fetch successfully";
 
 
     // Error messages
@@ -65,8 +65,6 @@ public interface Constants {
     public static final String USER_DETAILS_NOT_UPDATED = "ERR_USER_DETAILS_NOT_UPDATED";
     public static final String USER_NOT_UPDATED = "ERR_USER_NOT_UPDATED";
     public static final String INVALID_PHONE_NUMBER = "ERR_INVALID_PHONE";
-
-
 
 
 
