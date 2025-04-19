@@ -19,6 +19,17 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(EmailSendingException.class)
+    public ResponseEntity<ApiResponse<?>> handleEmailSendingException(EmailSendingException ex) {
+        log.error("Email not sent: {}", ex.getMessage());
+        ApiResponse<?> response = ApiResponse.error(
+                ErrorCode.EMAIL_SENDING_FAILED,
+                ex.getMessage(),
+                HttpStatus.INTERNAL_SERVER_ERROR
+        );
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<?>> handleResourceNotFoundException(ResourceNotFoundException ex) {
         log.error("Resource not found: {}", ex.getMessage());

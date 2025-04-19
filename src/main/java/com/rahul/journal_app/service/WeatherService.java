@@ -1,6 +1,6 @@
 package com.rahul.journal_app.service;
 
-import com.rahul.journal_app.api.response.WeatherResponse;
+import com.rahul.journal_app.model.response.WeatherResponse;
 import com.rahul.journal_app.cache.AppCache;
 import com.rahul.journal_app.constants.Constants;
 import lombok.extern.slf4j.Slf4j;

@@ -8,12 +8,14 @@ import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.entity.UserOtp;
 import com.rahul.journal_app.enums.Gender;
 import com.rahul.journal_app.exception.BadRequestException;
+import com.rahul.journal_app.model.ApiResponse;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.repository.JournalEntityRepository;
 import com.rahul.journal_app.repository.UserOtpRepository;
 import com.rahul.journal_app.repository.UserRepository;
-import com.rahul.journal_app.request.PasswordRestRequest;
+import com.rahul.journal_app.model.request.PasswordRestRequest;
 import com.rahul.journal_app.utils.Util;
+import io.micrometer.common.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,28 +77,27 @@ public class UserService {
         if (user.getUserCreatedDate() == null) {
             user.setUserCreatedDate(LocalDateTime.now());
         }
-        if(user.getEmail()==null || user.getEmail().isEmpty()){
+        if(StringUtils.isBlank(user.getEmail())){
             user.setEmail(user.getUserName());
         }
         user.setUserUpdatedDate(LocalDateTime.now());
-        User savedUser=userRepository.save(user);
+        userRepository.save(user);
 
         UserOtp userOtp = new UserOtp();
         userOtp.setUserName(user.getUserName());
-        //userOtp.setEmail(user.getUserName());
         userOtp.setOtp(generateOtp());
         userOtp.setOtpCreatedDateTime(LocalDateTime.now());
 
         UserOtp userOtpSaved = userOtpRepository.save(userOtp);
-        sendOtpVerificationEmail(savedUser.getFirstName(), userOtpSaved.getUserName(), userOtpSaved.getOtp());
+        sendOtpVerificationEmail(user.getFirstName(), userOtpSaved.getUserName(), userOtpSaved.getOtp());
         log.info("User Successfully Registered: {}", user.getUserName());
     }
 
     private void sendOtpVerificationEmail(String firstName, String userName, String otp) {
-
         String subject = "Verify Your Email Address for JournalApp Registration";
         String body = util.getBodyForOtpVerificationMail(firstName, userName, otp);
-        emailService.sendMail(userName, subject, body);
+        emailService.sendEmailWithEmbeddedLogo(userName, subject, body);
+        log.info("Sent verification email to {}", userName);
     }
 
     private String generateOtp() {
@@ -193,8 +194,6 @@ public class UserService {
                     .path(user.getProfileImageUrl())
                     .toUriString();
         }
-        log.info("hi");
-
 
 
         UserDto userDto = UserDto.builder()
@@ -363,7 +362,9 @@ public class UserService {
 
         String subject = "OTP to Reset Your Account Password";
         String body = util.getBodyForResetPasswordSendOtpMail(user.getFirstName(), user.getUserName(), userOtp.getOtp());
-        emailService.sendMail(user.getUserName(), subject, body);
+//        emailService.sendEmailWithVelinqLogo(user.getUserName(), subject, body);
+        emailService.sendEmailWithEmbeddedLogo(user.getUserName(), subject, body);
+        log.info("Sent password reset OTP email to {}", user.getUserName());
     }
 
     public static String generatePassword() {
@@ -395,34 +396,43 @@ public class UserService {
     }
 
     @Transactional
-    public ResponseEntity<?> verifyUser(String userName, String otp) {
+    public ResponseEntity<ApiResponse<?>> verifyUser(String userName, String otp) {
 
-        log.info("user verification ");
+        log.info("Email verification initiated");
         if(!util.isValidEmail(userName)){
-            return new ResponseEntity<>(Constants.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error(ErrorCode.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST));
         }
+
         Optional<UserOtp> optionalUserOtp=userOtpRepository.findByUserName(userName);
         if(optionalUserOtp.isPresent()){
 
             UserOtp savedUserOtp = optionalUserOtp.get();
             User savedUser=userRepository.findByUserName(userName);
+
             if(savedUser.isVerified()){
                 log.info("User already verified");
-                return new ResponseEntity<>(Constants.USER_ALREADY_VERIFIED, HttpStatus.OK);
+                return ResponseEntity.ok(ApiResponse.success(Constants.USER_ALREADY_VERIFIED, HttpStatus.OK));
             }
-            if (otp == null || otp.equals("")) {
-                log.info("OTP can not be null or empty");
-                return new ResponseEntity<>(Constants.OTP_NULL_OR_EMPTY_EXCEPTION, HttpStatus.BAD_REQUEST);
-            } else if (savedUserOtp.getOtp() == null || savedUserOtp.getOtp().equals("")) {
-                log.info("Invalid OTP");
-                return new ResponseEntity<>(Constants.INVALID_LINK, HttpStatus.BAD_REQUEST);
+
+            if (StringUtils.isBlank(otp)) {
+                log.info("OTP can not be null or empty for user: {}", userName);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        ApiResponse.error(ErrorCode.OTP_MISSING_FROM_LINK,HttpStatus.BAD_REQUEST));
+            } else if (StringUtils.isBlank(savedUserOtp.getOtp())) {
+                log.warn("OTP is missing in DB for user: {}", userName);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        ApiResponse.error(ErrorCode.OTP_NOT_FOUND_IN_DB,HttpStatus.BAD_REQUEST));
             } else if (!otp.equals(savedUserOtp.getOtp())) {
                 log.info("The link you provided is invalid");
-                return new ResponseEntity<>(Constants.INVALID_LINK, HttpStatus.BAD_REQUEST);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        ApiResponse.error(ErrorCode.OTP_INVALID,HttpStatus.BAD_REQUEST));
             } else if (isOtpExpired(savedUserOtp.getOtpCreatedDateTime())) {
                 log.info("The verification link has expired");
-                return new ResponseEntity<>(Constants.LINK_EXPIRED, HttpStatus.BAD_REQUEST);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        ApiResponse.error(ErrorCode.OTP_EXPIRED,HttpStatus.BAD_REQUEST));
             }
+
 
             User user=findUserByEmail(userName);
             user.setVerified(true);
@@ -430,9 +440,12 @@ public class UserService {
 
             savedUserOtp.setOtp("");
             UserOtp userOtpUpdated=userOtpRepository.save(savedUserOtp);
-            return new ResponseEntity<>(Constants.USER_VERIFICATION_SUCCESSFUL, HttpStatus.OK);
+            return ResponseEntity.ok(
+                    ApiResponse.success(Constants.USER_VERIFICATION_SUCCESSFUL, HttpStatus.OK));
         }
-        return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiResponse.error(ErrorCode.OTP_EXPIRED,HttpStatus.NOT_FOUND));
     }
 
     private boolean isValidOtp(String email, String otp){

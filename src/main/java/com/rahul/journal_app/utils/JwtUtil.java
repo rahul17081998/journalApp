@@ -1,10 +1,15 @@
 package com.rahul.journal_app.utils;
 
+import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.exception.InternalServerErrorException;
+import com.rahul.journal_app.model.response.LoginResponse;
+import com.rahul.journal_app.repository.UserRepository;
 import com.rahul.journal_app.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -13,12 +18,15 @@ import javax.crypto.SecretKey;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Date;
-
+@Slf4j
 @Component
 public class JwtUtil {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Value("${jwt.secret_key}")
     private String secretKey;
@@ -26,6 +34,26 @@ public class JwtUtil {
     @Value("${jwt.expiration_time}")
     private Long jwtExpirationTime; // in minute
 
+    public LoginResponse getLoginResponse(String userName){
+        try {
+            User user = userRepository.findByUserName(userName);
+            String userRole = user.getRoles().stream()
+                    .filter(role->role.equalsIgnoreCase("ADMIN") || role.equalsIgnoreCase("USER"))
+                    .sorted((r1,r2)->r2.equalsIgnoreCase("ADMIN")?1:-1)
+                    .findFirst()
+                    .orElse("USER");
+
+            return LoginResponse.builder()
+                    .jwtToken(generateToken(userName))
+                    .name(user.getFirstName().toUpperCase()+" "+user.getLastName().toUpperCase())
+                    .email(user.getUserName())
+                    .role(userRole)
+                    .build();
+        }catch (Exception e){
+            log.error("Failed to build login response for user: {}", userName, e);
+            throw new InternalServerErrorException(ErrorCode.FAILED_TO_GENERATE_LOGIN_RESPONSE);
+        }
+    }
     public String generateToken(String username) {
         Map<String, Object> claims = setClaims(username);
         return createJwtToken(claims, username);

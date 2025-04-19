@@ -1,4 +1,4 @@
-package com.rahul.journal_app.model;
+package com.rahul.journal_app.model.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

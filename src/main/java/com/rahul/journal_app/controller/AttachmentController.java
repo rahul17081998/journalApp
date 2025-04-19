@@ -1,7 +1,7 @@
 package com.rahul.journal_app.controller;
 
 import com.rahul.journal_app.entity.Attachment;
-import com.rahul.journal_app.model.ResponseData;
+import com.rahul.journal_app.model.response.ResponseData;
 import com.rahul.journal_app.service.AttachmentService;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;

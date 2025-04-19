@@ -1,6 +1,6 @@
 package com.rahul.journal_app.service;
 
-import com.rahul.journal_app.api.response.TwitterUser;
+import com.rahul.journal_app.model.response.TwitterUser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;

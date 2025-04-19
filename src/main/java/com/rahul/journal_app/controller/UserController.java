@@ -1,11 +1,11 @@
 package com.rahul.journal_app.controller;
 
-import com.rahul.journal_app.api.response.WeatherResponse;
+import com.rahul.journal_app.model.response.WeatherResponse;
 import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.model.ApiResponse;
-import com.rahul.journal_app.model.GreetingResponse;
+import com.rahul.journal_app.model.response.GreetingResponse;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.service.AttachmentService;
 import com.rahul.journal_app.service.UserService;

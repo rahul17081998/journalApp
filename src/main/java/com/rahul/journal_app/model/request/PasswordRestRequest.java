@@ -1,4 +1,4 @@
-package com.rahul.journal_app.request;
+package com.rahul.journal_app.model.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

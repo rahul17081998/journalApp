@@ -9,15 +9,16 @@ public interface Constants {
     public static String USER_REGISTRATION_SUCCESSFUL = "Registration successful! Please verify your email to complete the process.";
     public static String INCORRECT_USERNAME_OR_PASSWORD="Incorrect username or password";
     public static String EMAIL_NOT_FOUND ="Email not found";
-    public static String USER_VERIFICATION_SUCCESSFUL ="User verification successful";
-    public static final String EMAIL_SUCCESSFULLY_SENT = "Email successfully sent";
+    public static String USER_VERIFICATION_SUCCESSFUL ="Your email is verified successfully";
+    public static final String EMAIL_SENT_SUCCESSFULLY_MSG = "Email sent successfully";
     public static final String USER_NOT_VERIFIED = "User is not verified";
     public static final String USER_ALREADY_EXIST = "User already exist";
     public static final String USER_DETAILS_UPDATED_SUCCESSFULLY = "User details updated successfully";
     public static final String ADMIN_ACCESS_GRANT_EXCEPTION = "Exception while granting admin access of a user";
     public static final String ADMIN_ACCESS_REMOVE_EXCEPTION = "Exception while removing admin access of a user";
     public static final String USER_DOES_NOT_HAVE_ADMIN_ACCESS = "User does not have admin access.";
-    public static final String USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY = "A verification email has been sent to: ";
+    public static final String USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY = "A verification email has been sent to the user successfully.";
+    public static final String SIGNUP_SUCCESSFUL_MSG = "Signup successful";
     public static final String PASSWORD_CAN_NOT_BE_NULL_OR_EMPTY="Password can't be null or empty";
     public static final String EMPTY_FILE = "Cannot upload empty file";
 
@@ -40,12 +41,14 @@ public interface Constants {
     public static final String USER_ALREADY_HAS_ADMIN_ACCESS = "User has already admin access";
     public static final String INVALID_LINK = "The link you provided is invalid. Please check the link or request a new verification email.";
     public static final String LINK_EXPIRED = "The verification link has expired. Please request a new verification link to complete your email verification.";
-    public static final String USER_ALREADY_VERIFIED = "User already verified";
+    public static final String USER_ALREADY_VERIFIED = "Your email is already verified";
 
     // Success messages
     public static final String USER_PROFILE_PICTURE_UPDATED_SUCCESSFULLY_MSG = "User profile picture updated successfully";
     public static final String USER_DETAILS_FETCHED_SUCCESSFULLY_MSG = "User details fetched successfully";
     public static final String WEATHER_FETCH_SUCCESSFULLY_MSG = "Weather fetch successfully";
+    public static final String LOGIN_SUCCESSFUL_MSG = "Login successful";
+
 
 
     // Error messages

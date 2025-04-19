@@ -1,6 +1,7 @@
 package com.rahul.journal_app.model;
 
 import com.rahul.journal_app.constants.ErrorCode;
+import com.rahul.journal_app.enums.StatusEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,41 +15,41 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiResponse<T> {
-    private boolean success;
+//    private boolean success;
+    private StatusEnum status;
     private String message;
-    private T data;
-    private LocalDateTime timestamp;
-    
-    @Builder.Default
-    private ErrorDetails error = null;
-
     @Builder.Default
     private int statusCode = HttpStatus.OK.value();
-
+    private T data;
+    @Builder.Default
+    private ErrorDetails error = null;
     @Builder.Default
     private String statusName = HttpStatus.OK.name();
+    private LocalDateTime timestamp;
+
+
     
     public static <T> ApiResponse<T> success(T data, String message) {
         return ApiResponse.<T>builder()
-                .success(true)
+                .status(StatusEnum.SUCCESSFUL)
                 .message(message)
                 .data(data)
-                .timestamp(LocalDateTime.now())
                 .error(null)
                 .statusCode(HttpStatus.OK.value())
                 .statusName(HttpStatus.OK.name())
+                .timestamp(LocalDateTime.now())
                 .build();
     }
     
     public static <T> ApiResponse<T> success(T data, String message, HttpStatus status) {
         return ApiResponse.<T>builder()
-                .success(true)
+                .status(StatusEnum.SUCCESSFUL)
                 .message(message)
                 .data(data)
-                .timestamp(LocalDateTime.now())
                 .error(null)
                 .statusCode(status.value())
                 .statusName(status.name())
+                .timestamp(LocalDateTime.now())
                 .build();
     }
     
@@ -78,12 +79,12 @@ public class ApiResponse<T> {
                 .build();
                 
         return ApiResponse.<T>builder()
-                .success(false)
+                .status(StatusEnum.FAILED)
                 .message(message)
-                .timestamp(LocalDateTime.now())
                 .error(errorDetails)
                 .statusCode(status.value())
                 .statusName(status.name())
+                .timestamp(LocalDateTime.now())
                 .build();
     }
 
@@ -94,12 +95,12 @@ public class ApiResponse<T> {
                 .build();
 
         return ApiResponse.<T>builder()
-                .success(false)
+                .status(StatusEnum.FAILED)
                 .message(errorCode.getMessage())
-                .timestamp(LocalDateTime.now())
                 .error(errorDetails)
                 .statusCode(status.value())
                 .statusName(status.name())
+                .timestamp(LocalDateTime.now())
                 .build();
     }
 
