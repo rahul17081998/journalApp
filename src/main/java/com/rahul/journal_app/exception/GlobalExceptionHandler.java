@@ -52,7 +52,18 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
-    
+
+    @ExceptionHandler(BadOtpException.class)
+    public ResponseEntity<ApiResponse<?>> handleBadRequestException(BadOtpException ex) {
+        ErrorCode errorCode = ex.getErrorCode();
+        ApiResponse<?> response = ApiResponse.error(
+                errorCode,
+                errorCode.getMessage(), // Pass the readable message
+                HttpStatus.BAD_REQUEST
+        );
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(FileProcessingException.class)
     public ResponseEntity<ApiResponse<?>> handleFileProcessingException(FileProcessingException ex) {
         log.error("File processing error: {}", ex.getMessage(), ex);

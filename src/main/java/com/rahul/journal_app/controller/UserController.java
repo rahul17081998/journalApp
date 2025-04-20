@@ -53,11 +53,14 @@ public class UserController {
     }
 
     @DeleteMapping()
-    public ResponseEntity<String> deleteUser(){
-        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
-        String username= authentication.getName();
-        String result=userService.deleteUserByUsername(username);
-        return new ResponseEntity<>(result, HttpStatus.OK);
+    public ResponseEntity<ApiResponse<?>> deleteUser(){
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+        ApiResponse<?> response = userService.deleteUserByUsername(username);
+
+        return ResponseEntity.status(response.getStatusCode()).body(response);
+
     }
 
 

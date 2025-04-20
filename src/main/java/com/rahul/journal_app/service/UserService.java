@@ -7,7 +7,9 @@ import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.entity.UserOtp;
 import com.rahul.journal_app.enums.Gender;
+import com.rahul.journal_app.exception.BadOtpException;
 import com.rahul.journal_app.exception.BadRequestException;
+import com.rahul.journal_app.exception.InternalServerErrorException;
 import com.rahul.journal_app.model.ApiResponse;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.repository.JournalEntityRepository;
@@ -304,18 +306,26 @@ public class UserService {
         userRepository.deleteById(id);
     }
     @Transactional
-    public String deleteUserByUsername(String username){
+    public ApiResponse<?> deleteUserByUsername(String username) {
         try {
             User user = findByUserName(username);
-            if (!user.getJournalEntities().isEmpty()) {
+
+            if (user.getJournalEntities() != null && !user.getJournalEntities().isEmpty()) {
                 deleteListOfJournal(user.getJournalEntities());
             }
+
             userOtpRepository.deleteByUserName(username);
             userRepository.deleteByUserName(username);
-            return "user " + username + " deleted";
-        }catch (Exception e){
-            log.error("Error: {}", e.getMessage());
-            throw new RuntimeException(e);
+
+            log.info("User '{}' deleted successfully", username);
+            Map<String, String> res = new HashMap<>();
+            res.put("userID", username);
+            res.put("message", "Account deletion successful.");
+
+            return ApiResponse.success(res, Constants.USER_ACCOUNT_DELETED_SUCCESSFULLY_MSG, HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("Exception while deleting user '{}': {}", username, e.getMessage(), e);
+            return ApiResponse.error(ErrorCode.EXCEPTION_WHILE_DELETING_USER_ACCOUNT, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -450,17 +460,19 @@ public class UserService {
 
     private boolean isValidOtp(String email, String otp){
         Optional<UserOtp> optionalUserOtp=userOtpRepository.findByUserName(email);
-        if(optionalUserOtp.isPresent()) {
-            UserOtp savedUserOtp = optionalUserOtp.get();
-            if (otp == null || otp.equals("")) {
-                throw new RuntimeException(Constants.OTP_NULL_OR_EMPTY_EXCEPTION);
-            }else if (savedUserOtp.getOtp() == null || savedUserOtp.getOtp().equals("")) {
-                throw new RuntimeException("Invalid OTP");
-            }
-            if(otp.equals(savedUserOtp.getOtp())) return true;
-            else return false;
+
+        if(otp==null || otp.trim().isEmpty()){
+            throw new BadOtpException(ErrorCode.OTP_MISSING);
+        } else if(optionalUserOtp.isEmpty()) {
+           return false;
         }
-        return false;
+
+        UserOtp savedUserOtp = optionalUserOtp.get();
+        String savedOtp = savedUserOtp.getOtp();
+        if(savedOtp==null || savedOtp.trim().isEmpty()){
+            throw new BadOtpException(ErrorCode.OTP_ALREADY_USED_ERROR);
+        }
+        return otp.equals(savedOtp);
     }
 
     private boolean isOtpExpired(LocalDateTime otpCreatedDateTime) {
@@ -469,26 +481,35 @@ public class UserService {
     }
 
     @Transactional
-    public ResponseEntity<?> resetPassword(PasswordRestRequest passwordRestRequest) {
+    public ResponseEntity<ApiResponse<?>> resetPassword(PasswordRestRequest passwordRestRequest) {
         User user=userRepository.findByUserName(passwordRestRequest.getUserName());
+
         if(user==null){
-            log.info("User not found");
-            return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
+            log.info("User not found: {}", passwordRestRequest.getUserName());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND));
         } else if(!isValidOtp(passwordRestRequest.getUserName(), passwordRestRequest.getOtp())){
-            log.info("Invalid OTP");
-            return new ResponseEntity<>(Constants.INVALID_OTP_EXCEPTION, HttpStatus.BAD_REQUEST);
+            log.info("Invalid OTP for user: {}", passwordRestRequest.getUserName());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.INVALID_OTP_ERROR, HttpStatus.BAD_REQUEST));
         }
 
         Optional<UserOtp> optionalUserOtp=userOtpRepository.findByUserName(user.getUserName());
         if(!optionalUserOtp.isPresent()){
-            return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
+            log.warn("OTP not found in DB for user: {}", user.getUserName());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.OTP_NOT_FOUND_IN_DB, HttpStatus.BAD_REQUEST));
         }
 
         UserOtp userOtp = optionalUserOtp.get();
         if(isOtpExpired(userOtp.getOtpCreatedDateTime())){
-            return new ResponseEntity<>(Constants.OTP_EXPIRED, HttpStatus.BAD_REQUEST);
+            log.info("OTP expired for user: {}", user.getUserName());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.OTP_EXPIRED_ERROR, HttpStatus.BAD_REQUEST));
         }
-        // otp validated
+
+
+        // otp validated, now update password
         try {
             user.setPassword(passwordEncoder.encode(passwordRestRequest.getUpdatedPassword()));
             user.setUserUpdatedDate(LocalDateTime.now());
@@ -498,11 +519,15 @@ public class UserService {
             userOtp.setOtp("");
             userOtp.setOtpCreatedDateTime(LocalDateTime.now());
             UserOtp savedUserOtp = userOtpRepository.save(userOtp);
+            log.info("Password reset successful for user: {}", user.getUserName());
         }catch (Exception e){
-            log.error("Error: {}", e.getMessage());
-            throw new RuntimeException(e);
+            log.error("Exception during password reset for user {}: {}", user.getUserName(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(ErrorCode.FAILED_TO_RESET_PASSWORD, HttpStatus.INTERNAL_SERVER_ERROR));
+
         }
-        return new ResponseEntity<>(Constants.PASSWORD_RESET_SUCCESSFUL, HttpStatus.OK);
+
+        return ResponseEntity.ok(ApiResponse.success(Constants.PASSWORD_RESET_SUCCESSFUL, HttpStatus.OK));
     }
 
     public ResponseEntity<?> updateRoleOfUser(User user, boolean adminAccess) {

@@ -48,6 +48,7 @@ public interface Constants {
     public static final String USER_DETAILS_FETCHED_SUCCESSFULLY_MSG = "User details fetched successfully";
     public static final String WEATHER_FETCH_SUCCESSFULLY_MSG = "Weather fetch successfully";
     public static final String LOGIN_SUCCESSFUL_MSG = "Login successful";
+    public static final String USER_ACCOUNT_DELETED_SUCCESSFULLY_MSG = "User account deleted successful";
 
 
 

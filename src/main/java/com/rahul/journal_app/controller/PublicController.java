@@ -199,15 +199,8 @@ public class PublicController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody PasswordRestRequest passwordRestRequest){
-        ResponseEntity<?> response=null;
-        try{
-            response = userService.resetPassword(passwordRestRequest);
-        }catch (Exception e){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.error(ErrorCode.PASSWORD_RESET_FAILED, e.getMessage(), HttpStatus.BAD_REQUEST));
-        }
-        return response;
+    public ResponseEntity<ApiResponse<?>> resetPassword(@RequestBody PasswordRestRequest passwordRestRequest){
+        return  userService.resetPassword(passwordRestRequest);
     }
 
     @PostMapping("/send-sms")

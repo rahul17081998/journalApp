@@ -19,13 +19,26 @@ public enum ErrorCode {
     EMAIL_SENDING_FAILED("ERR_EMAIL_SENDING_FAILED", "Failed to send email."),
     EMAIL_NOT_FOUND("ERR_EMAIL_NOT_FOUND", "Email not registered"),
     PASSWORD_RESET_FAILED("ERR_PASSWORD_RESET_FAILED", "Failed to reset the password"),
+    OTP_MISSING("ERR_OTP_MISSING", "OTP is missing. Please provide it."),
+
     OTP_MISSING_FROM_LINK("ERR_OTP_MISSING_FROM_LINK", "The verification link is missing the OTP. Please try again."),
     OTP_NOT_FOUND_IN_DB("ERR_OTP_NOT_FOUND_IN_DB", "No OTP found for this request. It may have already been used or never generated."),
     OTP_INVALID("ERR_OTP_INVALID", "The verification link is invalid."),
+    INVALID_OTP_ERROR("ERR_INVALID_OTP", "Incorrect OTP provided."),
     OTP_EXPIRED("ERR_OTP_EXPIRED", "This verification link has expired. Please request a new one."),
+    OTP_EXPIRED_ERROR("ERR_OTP_EXPIRED", "This otp has expired. Please request a new one."),
     OTP_ALREADY_USED("ERR_OTP_ALREADY_USED", "This verification link has already been used."),
+    OTP_ALREADY_USED_ERROR("ERR_OTP_ALREADY_USED_ERROR", "This otp has already been used. Please request new otp"),
     USER_ALREADY_VERIFIED("ERR_USER_ALREADY_VERIFIED", "Your email is already verified."),
     FAILED_TO_VERIFY_USER_EMAIL("ERR_USER_VERIFICATION_FAILED", "Something went wrong while verifying your email."),
+    FAILED_TO_RESET_PASSWORD("ERR_FAILED_TO_RESET_PASSWORD", "Something went wrong while updating password."),
+    FAILED_TO_DELETE_USER_ACCOUNT("ERR_FAILED_TO_DELETE_USER_ACCOUNT", "Failed to delete user account"),
+
+
+
+
+
+    EXCEPTION_WHILE_DELETING_USER_ACCOUNT("FOUND_EXCEPTION_TO_WHILE_DELETING_USER_AC", "Something went wrong while deleting user your email.")
     ;
 
     private final String code;
