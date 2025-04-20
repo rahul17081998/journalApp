@@ -1,20 +1,26 @@
 package com.rahul.journal_app.controller;
 
-import com.rahul.journal_app.api.response.TwitterUser;
+import com.rahul.journal_app.constants.ErrorCode;
+import com.rahul.journal_app.entity.Attachment;
+import com.rahul.journal_app.model.ApiResponse;
+import com.rahul.journal_app.model.response.LoginResponse;
+import com.rahul.journal_app.model.response.TwitterUser;
 import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.entity.User;
-import com.rahul.journal_app.model.UserOtpDto;
 import com.rahul.journal_app.repository.UserRepository;
-import com.rahul.journal_app.request.PasswordRestRequest;
-import com.rahul.journal_app.service.SmsService;
-import com.rahul.journal_app.service.TwitterService;
-import com.rahul.journal_app.service.UserDetailsServiceImpl;
-import com.rahul.journal_app.service.UserService;
+import com.rahul.journal_app.model.request.PasswordRestRequest;
+import com.rahul.journal_app.service.*;
 import com.rahul.journal_app.utils.JwtUtil;
 import com.rahul.journal_app.utils.Util;
+import com.twilio.base.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,6 +28,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/public")
@@ -47,12 +54,17 @@ public class PublicController {
 
     private final UserService userService;
     private final TwitterService twitterService;
+    private final AttachmentService attachmentService;
     @Autowired
     private SmsService smsService;
 
-    public PublicController(UserService userService, TwitterService twitterService) {
+    @Value("${media.velinq.logo}")
+    private String velinqLogo;
+
+    public PublicController(UserService userService, TwitterService twitterService, AttachmentService attachmentService) {
         this.userService = userService;
         this.twitterService = twitterService;
+        this.attachmentService = attachmentService;
     }
 
 
@@ -76,90 +88,119 @@ public class PublicController {
     public ResponseEntity<?> signup(@RequestBody User user){
         user.setRoles(Arrays.asList("USER"));
         if(!util.isValidEmail(user.getUserName())){
-            return new ResponseEntity<>(Constants.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.INVALID_EMAIL_FORMAT, null, HttpStatus.BAD_REQUEST));
         }
+
         User dbuser=userRepository.findByUserName(user.getUserName());
         if(dbuser!=null){
-            return new ResponseEntity<>(Constants.USER_ALREADY_EXIST, HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.USER_ALREADY_EXIST, null, HttpStatus.BAD_REQUEST));
         }
+
+        if(user.getPassword()==null || user.getPassword().isEmpty()){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.PASSWORD_CAN_NOT_BE_NULL_OR_EMPTY, null, HttpStatus.BAD_REQUEST));
+        }
+
         try {
-            userService.saveNewUser(user);
+             userService.saveNewUser(user);
         }catch (Exception e){
-            log.info("Exception: {}",e.getMessage());
-            return new ResponseEntity<>(Constants.EXCEPTION_OCCURRED_DURING_USER_REGISTRATION, HttpStatus.OK);
+            log.error("Exception occurred during signup: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(ErrorCode.USER_REGISTRATION_FAILED, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
         }
-        return new ResponseEntity<>(Constants.USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY+user.getUserName(), HttpStatus.OK);
+
+        Map<String, String> response = Map.of(
+                "email", user.getUserName(),
+                "message", Constants.USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY
+        );
+        return ResponseEntity.ok(ApiResponse
+                .success(response, Constants.SIGNUP_SUCCESSFUL_MSG));
     }
 
     // create jwt token
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody User user){
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody User user){
         log.info("Start login");
-        if(user.getUserName() !=null && !user.getUserName().equals("")){
+        if(user.getUserName() !=null && !user.getUserName().trim().isEmpty()){
             user.setUserName(user.getUserName().toLowerCase());
         }
 
         User dbUser=userRepository.findByUserName(user.getUserName());
         if(dbUser==null){
-            return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, null, HttpStatus.BAD_REQUEST));
         }
 
         try {
-            // try to check user authentication
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(user.getUserName(), user.getPassword())
-            );
-            log.info("User authenticated: {}", user.getUserName());
+
+            try {
+                // try to check user authentication
+                authenticationManager.authenticate(
+                        new UsernamePasswordAuthenticationToken(user.getUserName(), user.getPassword())
+                );
+                log.info("User authenticated: {}", user.getUserName());
+            }catch (Exception e){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error(ErrorCode.INCORRECT_PASSWORD, HttpStatus.BAD_REQUEST));
+            }
 
 
             UserDetails userDetails =userDetailsServiceImpl.loadUserByUsername(user.getUserName());
             if(!userDetails.isEnabled()){
-                return new ResponseEntity<>(Constants.USER_NOT_VERIFIED, HttpStatus.BAD_REQUEST);
-            }
-            String jwt=jwtUtil.generateToken(userDetails.getUsername());
-            return new ResponseEntity<>(jwt, HttpStatus.OK);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error(ErrorCode.USER_NOT_VERIFIED, null, HttpStatus.BAD_REQUEST));            }
+            LoginResponse loginResponse = jwtUtil.getLoginResponse(userDetails.getUsername());
+            return ResponseEntity.ok(ApiResponse.success(loginResponse, Constants.LOGIN_SUCCESSFUL_MSG));
 
         }catch (Exception e){
-            log.error("Exception occurred while creatingAuthenticationToken: {}", e.getMessage());
-            return new ResponseEntity<>(Constants.INCORRECT_PASSWORD, HttpStatus.BAD_REQUEST);
+            log.error("Exception occurred while authenticating: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(ErrorCode.FAILED_TO_CREATE_JWT_TOKEN, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
         }
     }
 
     @GetMapping("/send-forget-password-otp")
-    public ResponseEntity<String> getForgetPasswordEmailOtp(@RequestParam("email") String email){
+    public ResponseEntity<ApiResponse<?>> getForgetPasswordEmailOtp(@RequestParam("email") String email){
         if(!util.isValidEmail(email)){
-            return new ResponseEntity<>(Constants.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.INVALID_EMAIL_FORMAT, null, HttpStatus.BAD_REQUEST));
         }
+
         User user=userService.findUserByEmail(email);
-        if(user !=null){
-            userService.sendForgetPasswordEmailOtp(user);
-            return new ResponseEntity<>(Constants.EMAIL_SUCCESSFULLY_SENT, HttpStatus.OK);
+        if(user==null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.EMAIL_NOT_FOUND, null, HttpStatus.NOT_FOUND));
         }
-        return new ResponseEntity<>(Constants.EMAIL_NOT_FOUND, HttpStatus.BAD_REQUEST);
+
+        try{
+            userService.sendForgetPasswordEmailOtp(user);
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ErrorCode.EMAIL_SENDING_FAILED, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+        return ResponseEntity.ok(ApiResponse.success(Constants.EMAIL_SENT_SUCCESSFULLY_MSG));
     }
 
 
     @GetMapping("/verify-user")
-    public ResponseEntity<?> verifyUser(@RequestParam("userName") String userName,
+    public ResponseEntity<ApiResponse<?>> verifyUser(@RequestParam("userName") String userName,
                                         @RequestParam("otp") String otp){
-        log.info("User email verification begin");
+        log.info("User email verification initiated for: {}", userName);
         try {
-            ResponseEntity<?> response=userService.verifyUser(userName, otp);
+            ResponseEntity<ApiResponse<?>> response=userService.verifyUser(userName, otp);
             return response;
         }catch (Exception e){
-            return new ResponseEntity<>(Constants.EXCEPTION_OCCURRED_DURING_USER_VERIFICATION, HttpStatus.BAD_REQUEST);
+            log.error("Exception during user verification for {}: {}", userName, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.FAILED_TO_VERIFY_USER_EMAIL,e.getMessage(), HttpStatus.BAD_REQUEST));
         }
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody PasswordRestRequest passwordRestRequest){
-        ResponseEntity<?> response=null;
-        try{
-            response = userService.resetPassword(passwordRestRequest);
-        }catch (Exception e){
-            throw new RuntimeException(Constants.PASSWORD_RESET_EXCEPTION_OCCURRED);
-        }
-        return response;
+    public ResponseEntity<ApiResponse<?>> resetPassword(@RequestBody PasswordRestRequest passwordRestRequest){
+        return  userService.resetPassword(passwordRestRequest);
     }
 
     @PostMapping("/send-sms")
@@ -175,4 +216,16 @@ public class PublicController {
         }
     }
 
+
+    @GetMapping("/logo")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadFile() throws Exception {
+        ObjectId logoId = new ObjectId(velinqLogo); // your file ID
+
+        Attachment attachment = attachmentService.getAttachment(logoId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(attachment.getFileType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; fileName=\"" + attachment.getFileName() + "\"")
+                .body(new ByteArrayResource(attachment.getData()));
+    }
 }

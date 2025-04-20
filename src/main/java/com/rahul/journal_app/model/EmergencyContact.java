@@ -1,4 +1,4 @@
-package com.rahul.journal_app.request;
+package com.rahul.journal_app.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,9 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PasswordRestRequest {
-
-    private String userName;
-    private String otp;
-    private String updatedPassword;
-}
+public class EmergencyContact {
+    private String name;
+    private String relation;
+    private String phone;
+} 

@@ -51,12 +51,31 @@ public class User {
     private boolean sentimentAnalysis;
     @NotBlank(message = "Password cannot be blank")
     private String password;
-    @DBRef
-    private List<JournalEntries> journalEntities= new ArrayList<>();
     private List<String> roles;
     private boolean verified;
     @CreatedDate
     private LocalDateTime userCreatedDate;
     @LastModifiedDate
     private LocalDateTime UserUpdatedDate;
+    
+    // New fields
+    private String profileImageUrl;
+    private String maritalStatus;
+    private String occupation;
+    private String company;
+    private List<Education> education;
+    private String alternatePhone;
+    @Email
+    private String email;
+    private String alternateEmail;
+    private Address address;
+    private SocialProfiles socialProfiles;
+    private List<String> languages;
+    private List<String> skills;
+    private List<String> interests;
+    private EmergencyContact emergencyContact;
+    private String bloodGroup;
+    private Preferences preferences;
+    @DBRef
+    private List<JournalEntries> journalEntities= new ArrayList<>();
 }

@@ -28,6 +28,8 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
     private UserRepository userRepository;
     @Autowired
     private UserService userService;
+    @Autowired
+    private AttachmentService attachmentService;
 
     @Override
     public void export(HttpServletResponse response, String userName) throws IOException {
@@ -233,6 +235,15 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
         fullNamePara.setSpacingBefore(10);
         fullNamePara.setSpacingAfter(15);
         nameSectionCell.addElement(fullNamePara);
+        
+        // Add profile photo if available
+        if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isEmpty()) {
+            try {
+                addProfilePhoto(nameSectionCell, user.getProfileImageUrl());
+            } catch (Exception e) {
+                log.error("Error adding profile photo: {}", e.getMessage());
+            }
+        }
         
         // Status as a badge
         PdfPTable statusTable = new PdfPTable(1);
@@ -654,6 +665,74 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
             );
             canvas.fill();
             canvas.restoreState();
+        }
+    }
+
+
+
+    /**
+     * Adds a profile photo to the PDF document
+     * @param cell The cell to add the profile photo to
+     * @param profileImageId The ID of the profile image to fetch from the attachment service
+     * @throws Exception If there is an error fetching or adding the profile image
+     */
+    private void addProfilePhoto(PdfPCell cell, String profileImageId) throws Exception {
+        // If the profileImageId contains a URL path, extract just the ID
+        if (profileImageId.contains("/")) {
+            String[] parts = profileImageId.split("/");
+            profileImageId = parts[parts.length - 1];
+        }
+        
+        try {
+            // Convert string ID to ObjectId
+            org.bson.types.ObjectId imageObjectId = new org.bson.types.ObjectId(profileImageId);
+            
+            // Fetch the attachment using the AttachmentService
+            com.rahul.journal_app.entity.Attachment attachment = attachmentService.getAttachment(imageObjectId);
+            
+            if (attachment != null && attachment.getData() != null) {
+                // Create image from byte array
+                com.lowagie.text.Image image = com.lowagie.text.Image.getInstance(attachment.getData());
+                
+                // Rotate the image 90 degrees counter-clockwise
+//                image.setRotationDegrees(90);
+                
+                // Scale and center the image
+                image.scaleToFit(150, 150);
+                
+                // Create a table for the image with one cell
+                PdfPTable imageTable = new PdfPTable(1);
+                imageTable.setWidthPercentage(50);
+                imageTable.setHorizontalAlignment(Element.ALIGN_CENTER);
+                imageTable.setSpacingBefore(10);
+                imageTable.setSpacingAfter(15);
+                
+                // Create a cell for the image
+                PdfPCell imageCell = new PdfPCell(image);
+                imageCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                imageCell.setBorder(Rectangle.BOX);
+                imageCell.setBorderColor(new Color(0, 51, 102));
+                imageCell.setPadding(5);
+                
+                // Add rounded corners to the image cell
+                imageCell.setCellEvent(new RoundedCornersCellEvent(8f, new Color(0, 51, 102)));
+                
+                // Add the image cell to the table
+                imageTable.addCell(imageCell);
+                
+                // Add the image table to the parent cell
+                cell.addElement(imageTable);
+                
+                log.info("Profile photo added successfully");
+            } else {
+                log.warn("Profile image not found or empty for ID: {}", profileImageId);
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid ObjectId format for profile image: {}", profileImageId);
+            throw new Exception("Invalid profile image ID format", e);
+        } catch (Exception e) {
+            log.error("Error adding profile photo: {}", e.getMessage());
+            throw e;
         }
     }
 }

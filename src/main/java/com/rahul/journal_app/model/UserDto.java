@@ -37,7 +37,26 @@ public class UserDto {
     private boolean sentimentAnalysis;
     private boolean verified;
     private List<String> roles;
-    private List<JournalEntries> journalEntities= new ArrayList<>();
     private LocalDateTime userCreatedDate;
     private LocalDateTime userUpdatedDate;
+    
+    // New fields
+    private String profileImageUrl;
+    private String maritalStatus;
+    private String occupation;
+    private String company;
+    private List<Education> education;
+    private String alternatePhone;
+    private String email;
+    private String alternateEmail;
+    private Address address;
+    private SocialProfiles socialProfiles;
+    private List<String> languages;
+    private List<String> skills;
+    private List<String> interests;
+    private EmergencyContact emergencyContact;
+    private String bloodGroup;
+    private Preferences preferences;
+    private List<JournalEntries> journalEntities= new ArrayList<>();
+
 }

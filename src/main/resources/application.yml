@@ -88,6 +88,11 @@ twilio:
     accountSID: ${TWILIO_SID}
     authToken: ${TWILIO_AUTH_TOKEN}
 
+media:
+    velinq:
+        logo: ${VELINQ_LOGO}
+
+
 
 management:
     metrics:
