@@ -1,5 +1,9 @@
 package com.rahul.journal_app.service;
 
+import com.rahul.journal_app.constants.ErrorCode;
+import com.rahul.journal_app.exception.BadRequestException;
+import com.rahul.journal_app.exception.InternalServerErrorException;
+import com.rahul.journal_app.model.ApiResponse;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
@@ -24,16 +28,30 @@ public class SmsService {
     public void initTwilio(){
         Twilio.init(accountSid, authToken);
     }
-    public ResponseEntity<?> sendWelcomeSMST(String toPhoneNumber) {
+    public ResponseEntity<ApiResponse<String>> sendWelcomeSMST(String toPhoneNumber) {
+
+
+        if(!isValidPhoneNumber( toPhoneNumber)){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error(ErrorCode.INVALID_PHONE_NUMBER, HttpStatus.BAD_REQUEST));
+        }
+
+        toPhoneNumber= "+91" + toPhoneNumber; // starts with +91XXX...
 
         try {
             sendSMS(toPhoneNumber, "Kiske liye kam karte ho tum😂 batao \n Sir mai kam hi nhi karta hu kuch🤣🤣!");
             log.info("SMS send to: {}", toPhoneNumber);
-            return new ResponseEntity<>("SMS send to " + toPhoneNumber + " successfully", HttpStatus.OK);
+            String message = "SMS send to " + toPhoneNumber + " successfully";
+            return ResponseEntity.ok(ApiResponse.success(message));
         }catch (Exception e){
             log.warn("Error {}", e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw new InternalServerErrorException(ErrorCode.FAILED_TO_SEND_MSG,e.getCause());
         }
+    }
+
+    private boolean isValidPhoneNumber(String number){
+        if(number==null || number.isEmpty() || number.length()<10 || number.length()>10) return false;
+        return number.matches("^[6-9]\\d{9}");
     }
 
     public void sendSMS(String toPhoneNumber, String body){

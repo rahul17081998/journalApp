@@ -7,7 +7,9 @@ public enum ErrorCode {
     FAILED_TO_GENERATE_LOGIN_RESPONSE("ERR_LOGIN_RESPONSE", "Failed to generate login response"),
     PROFILE_PHOTO_UPDATE_FAILED("ERR_USER_DETAILS_NOT_UPDATED", "Failed to update profile photo"),
     USER_NOT_FOUND("ERR_USER_NOT_FOUND", "User not found"),
-    INVALID_PHONE_NUMBER("ERR_INVALID_PHONE", "Invalid phone number"),
+    USER_ALREADY_HAS_ADMIN_ACCESS("ERR_USER_ALREADY_HAS_ADMIN_ACCESS", "User already has admin access."),
+    USER_ALREADY_HAS_USER_ACCESS("ERR_USER_ALREADY_HAS_USER_ACCESS", "User already has USER access."),
+    INVALID_PHONE_NUMBER("ERR_INVALID_PHONE_NUMBER", "Invalid phone number provided"),
     INVALID_DATE_OF_BIRTH("ERR_INVALID_DOB", "Invalid date of birth"),
     INVALID_GENDER("ERR_INVALID_GENDER", "Invalid gender"),
     CITY_FIELD_EMPTY_OR_NULL("ERR_INVALID_CITY","The city field for the user is either empty or null."),
@@ -33,12 +35,14 @@ public enum ErrorCode {
     FAILED_TO_VERIFY_USER_EMAIL("ERR_USER_VERIFICATION_FAILED", "Something went wrong while verifying your email."),
     FAILED_TO_RESET_PASSWORD("ERR_FAILED_TO_RESET_PASSWORD", "Something went wrong while updating password."),
     FAILED_TO_DELETE_USER_ACCOUNT("ERR_FAILED_TO_DELETE_USER_ACCOUNT", "Failed to delete user account"),
+    FAILED_TO_UPDATE_ROLE("ERR_FAILED_TO_UPDATE_ROLE", "Failed to update role of user."),
 
 
 
 
-
-    EXCEPTION_WHILE_DELETING_USER_ACCOUNT("FOUND_EXCEPTION_TO_WHILE_DELETING_USER_AC", "Something went wrong while deleting user your email.")
+    EXCEPTION_WHILE_DELETING_USER_ACCOUNT("FOUND_EXCEPTION_TO_WHILE_DELETING_USER_AC", "Something went wrong while deleting user your email."),
+    EXCEPTION_WHILE_UPDATING_USER_ROLE("EXCEPTION_WHILE_UPDATING_USER_ROLE", "Something went wrong while updating role of user."),
+    FAILED_TO_SEND_MSG("ERR_FAILED_TO_SEND_MSG", "Exception while sending sms to user.")
     ;
 
     private final String code;
