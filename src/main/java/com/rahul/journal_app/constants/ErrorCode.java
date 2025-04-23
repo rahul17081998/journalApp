@@ -36,12 +36,26 @@ public enum ErrorCode {
     FAILED_TO_RESET_PASSWORD("ERR_FAILED_TO_RESET_PASSWORD", "Something went wrong while updating password."),
     FAILED_TO_DELETE_USER_ACCOUNT("ERR_FAILED_TO_DELETE_USER_ACCOUNT", "Failed to delete user account"),
     FAILED_TO_UPDATE_ROLE("ERR_FAILED_TO_UPDATE_ROLE", "Failed to update role of user."),
+    FAILED_TO_FETCH_USER_JOURNAL_ENTRIES("ERR_FAILED_TO_FETCH_USER_JOURNAL_ENTRIES", "Failed to fetch user journal entries"),
+    FAILED_TO_CREATE_AND_SAVE_JOURNAL_ENTRY("ERR_FAILED_TO_CREATE_AND_SAVE_JOURNAL_ENTRY", "Failed to create and save journal entry"),
+
+
+
+
+    TITLE_EMPTY_ERROR("ERR_TITLE_EMPTY", "Journal title is required and cannot be left blank."),
+    CONTENT_EMPTY_ERROR("ERR_CONTENT_EMPTY", "Please provide some content for the journal entry."),
+    INVALID_SENTIMENT_ERROR("ERR_INVALID_SENTIMENT", "Invalid sentiment value. Accepted values are: HAPPY, SAD, ANGRY, or ANXIOUS."),
+
+    INVALID_JOURNAL_ID_ERROR("ERR_INVALID_JOURNAL_ID_ERROR", "Invalid journal ID provided"),
+
 
 
 
 
     EXCEPTION_WHILE_DELETING_USER_ACCOUNT("FOUND_EXCEPTION_TO_WHILE_DELETING_USER_AC", "Something went wrong while deleting user your email."),
     EXCEPTION_WHILE_UPDATING_USER_ROLE("EXCEPTION_WHILE_UPDATING_USER_ROLE", "Something went wrong while updating role of user."),
+    EXCEPTION_WHILE_ADDING_JOURNAL_ENTRY("EXCEPTION_WHILE_ADDING_JOURNAL_ENTRY", "Something went wrong while adding journal entry."),
+    EXCEPTION_WHILE_FETCHING_JOURNAL_ENTRY("EXCEPTION_OCCURRED_WHILE_FETCHING_JOURNAL_ENTRY", "Something went wrong while fetching journal entry."),
     FAILED_TO_SEND_MSG("ERR_FAILED_TO_SEND_MSG", "Exception while sending sms to user.")
     ;
 

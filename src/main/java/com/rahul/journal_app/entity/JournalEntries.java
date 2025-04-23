@@ -13,7 +13,9 @@ import java.util.Date;
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
 @Document(collection = "journal_entries")
+@Builder
 public class JournalEntries {
 
     @Id

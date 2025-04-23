@@ -165,10 +165,10 @@ public class UserService {
         }
     }
 
-    public User saveUserEntry(User user){
-        User savedUser = userRepository.save(user);
-        return savedUser;
-    }
+//    public User saveUserEntry(User user){
+//        User savedUser = userRepository.save(user);
+//        return savedUser;
+//    }
 
     public List<UserDto> getAllUsers(){
         List<User> allUser= userRepository.findAll();

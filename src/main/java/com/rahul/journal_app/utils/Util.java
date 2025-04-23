@@ -2,6 +2,7 @@ package com.rahul.journal_app.utils;
 
 import com.rahul.journal_app.entity.Attachment;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.enums.Sentiment;
 import com.rahul.journal_app.repository.AttachmentRepository;
 import com.rahul.journal_app.repository.UserRepository;
 import com.rahul.journal_app.service.AttachmentService;
@@ -272,5 +273,19 @@ public class Util {
                 "</html>";
                 
         return body;
+    }
+
+    public boolean isValidSentiment(String journalSentiment) {
+        if(journalSentiment==null || journalSentiment.trim().isEmpty()){
+            // Sentiment is optional, so null or empty is acceptable
+            return true;
+        }
+
+        try{
+            Sentiment.valueOf(journalSentiment.toUpperCase());
+            return true;
+        }catch (IllegalArgumentException e){
+            return false;
+        }
     }
 }
