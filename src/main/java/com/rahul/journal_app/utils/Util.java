@@ -1,7 +1,11 @@
 package com.rahul.journal_app.utils;
 
 import com.rahul.journal_app.entity.Attachment;
+import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.enums.JournalCategory;
+import com.rahul.journal_app.enums.JournalSortBy;
+import com.rahul.journal_app.enums.PrivacyLevel;
 import com.rahul.journal_app.enums.Sentiment;
 import com.rahul.journal_app.repository.AttachmentRepository;
 import com.rahul.journal_app.repository.UserRepository;
@@ -277,8 +281,7 @@ public class Util {
 
     public boolean isValidSentiment(String journalSentiment) {
         if(journalSentiment==null || journalSentiment.trim().isEmpty()){
-            // Sentiment is optional, so null or empty is acceptable
-            return true;
+            return true; // Sentiment is optional, so null or empty is acceptable
         }
 
         try{
@@ -288,4 +291,142 @@ public class Util {
             return false;
         }
     }
+
+    public boolean isValidPrivacyLevel(String privacyLevel) {
+        if(privacyLevel==null || privacyLevel.trim().isEmpty()){
+            return true;  // Default would be PRIVATE
+        }
+        try{
+            PrivacyLevel.valueOf(privacyLevel.trim().toUpperCase());
+            return true;
+        }catch (IllegalArgumentException e){
+            return false;
+        }
+
+    }
+
+    public boolean isValidJournalCategory(String category) {
+        if(category==null || category.trim().isEmpty()){
+            return true;  // Default would be DAILY
+        }
+        try{
+            JournalCategory.valueOf(category.trim().toUpperCase());
+            return true;
+        }catch (IllegalArgumentException e){
+            return false;
+        }
+
+    }
+
+    public boolean isValidEmotionRating(Integer emotionRating) {
+        if(emotionRating==null) return true; // default=1
+        if(emotionRating>0 && emotionRating<=10) return true;
+        return false;
+    }
+
+    public String getUserFullName(String firstName, String lastName) {
+        return firstName.toUpperCase() + " "+lastName.toUpperCase();
+    }
+
+    public Integer getWordCount(String content) {
+        if(content==null || content.trim().isEmpty()) return 0;
+        return content.trim().split("\\s+").length;
+    }
+
+    public boolean isValidJournalSortBy(String sortBy) {
+        if(sortBy==null || sortBy.trim().isEmpty()) return true;
+        try{
+            JournalSortBy.valueOf(sortBy.trim().toUpperCase());
+            return true;
+        }catch (IllegalArgumentException e){
+            return false;
+        }
+    }
+
+    public String getBodyForShareJournalNotification(String toUserEmail, JournalEntries journal, String currentUserEmail) {
+        String logoHtml = "<img src=\"cid:logo\" alt=\"VELINQ Logo\" width=\"100\" height=\"auto\" " +
+                "style=\"display: block; margin: 0 auto; max-width: 100px; border: 0; outline: none;\" />";
+
+        String journalViewUrl = baseUrl + "/journal/journal/id/" + journal.getId();
+
+        String authorName = journal.getAuthorName() != null ? journal.getAuthorName() : currentUserEmail;
+        String recipientName = toUserEmail != null && !toUserEmail.isEmpty() ? toUserEmail.split("@")[0] : "User";
+
+        String body = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">" +
+                "<html xmlns=\"http://www.w3.org/1999/xhtml\">" +
+                "<head>" +
+                "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />" +
+                "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />" +
+                "<title>Journal Shared With You</title>" +
+                "<style type=\"text/css\">" +
+                "body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #333333; }" +
+                ".container { max-width: 600px; }" +
+                ".button { display: inline-block; padding: 10px 20px; font-size: 16px; color: #ffffff !important; text-decoration: none; background-color: #007BFF; border-radius: 5px; }" +
+                ".button:hover { background-color: #0056b3; }" +
+                "</style>" +
+                "</head>" +
+                "<body style=\"margin: 0; padding: 0; font-family: Arial, sans-serif; color: #333333;\">" +
+                "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">" +
+                "<tr><td>" +
+                "<table align=\"center\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"600\" style=\"border-collapse: collapse; max-width: 600px; background-color: #f9f9f9; border: 1px solid #dddddd; border-radius: 8px;\">" +
+
+                // Header with logo
+                "<tr><td align=\"center\" style=\"padding: 20px 0 5px 0;\">" +
+                logoHtml +
+                "</td></tr>" +
+
+                // Body
+                "<tr><td style=\"padding: 20px 30px 20px 30px;\">" +
+                "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">" +
+                "<tr><td style=\"padding: 0 0 10px 0;\">" +
+                "Hello <strong>" + capitalizeFirstChar(recipientName) + "</strong>," +
+                "</td></tr>" +
+                "<tr><td style=\"padding: 0 0 15px 0;\">" +
+                "<strong>" + authorName + "</strong> has shared a journal entry with you on Velinq!" +
+                "</td></tr>" +
+                "<tr><td style=\"padding: 0 0 10px 0;\">" +
+                "<strong>Title:</strong> " + journal.getTitle() +
+                "</td></tr>" +
+                "<tr><td style=\"padding: 0 0 10px 0;\">" +
+                "<strong>Content:</strong><br/>" +
+                "<div style='background:#f4f8fb;padding:12px 15px;border-radius:5px;border:1px solid #e0e0e0;'>" +
+                journal.getContent() +
+                "</div>" +
+                "</td></tr>" +
+                "<tr><td align=\"center\" style=\"padding: 20px 0 20px 0;\">" +
+                "<a href=\"" + journalViewUrl + "\" class=\"button\" style=\"display: inline-block; padding: 10px 25px; font-size: 16px; color: #ffffff; text-decoration: none; background-color: #007BFF; border-radius: 5px;\">View Journal</a>" +
+                "</td></tr>" +
+                "<tr><td style=\"padding: 0 0 10px 0;\">" +
+                "You can now view, comment, or like this journal entry." +
+                "</td></tr>" +
+                "<tr><td style=\"padding: 20px 0 10px 0;\">" +
+                "Best regards,<br/>" +
+                "The VELINQ Team" +
+                "</td></tr>" +
+                "</table>" +
+                "</td></tr>" +
+
+                // Footer
+                "<tr><td style=\"padding: 10px 30px 20px 30px; border-top: 1px solid #dddddd;\">" +
+                "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\">" +
+                "<tr><td style=\"font-size: 12px; color: #999999; text-align: center;\">" +
+                "This is a system-generated email. Please do not reply to this message." +
+                "</td></tr>" +
+                "</table>" +
+                "</td></tr>" +
+
+                "</table>" +
+                "</td></tr>" +
+                "</table>" +
+                "</body>" +
+                "</html>";
+
+        return body;
+    }
+
+    // Helper to capitalize first character
+//    private String capitalizeFirstChar(String str) {
+//        if (str == null || str.isEmpty()) return "";
+//        return str.substring(0, 1).toUpperCase() + str.substring(1);
+//    }
 }

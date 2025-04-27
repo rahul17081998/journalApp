@@ -52,9 +52,11 @@ public interface Constants {
     public static final String USER_ACCOUNT_DELETED_SUCCESSFULLY_MSG = "User account deleted successful";
     public static final String USER_ROLE_SUCCESSFULLY_MSG = "User role updated successful";
     public static final String USER_JOURNALS_FETCH_SUCCESSFULLY_MSG = "User journals fetched successful";
-    public static final String JOURNAL_NOT_FOUND_MSG = "No journal entries found for the user";
+    public static final String NO_JOURNAL_FOUND_MATCHING_THE_CRITERIA_MSG = "No journals found matching the criteria for user";
     public static final String JOURNAL_ENTRY_CREATED_SUCCESSFULLY_MSG = "Journal entry created successful";
+    public static final String JOURNAL_ENTRY_UPDATED_SUCCESSFULLY_MSG = "Journal entry updated successful";
     public static final String JOURNAL_ENTRY_FETCH_SUCCESSFULLY_MSG = "Journal entry fetch successfully";
+    public static final String JOURNAL_ENTRY_SHARED_SUCCESSFULLY_MSG = "Journal entry shared successfully";
 
 
 

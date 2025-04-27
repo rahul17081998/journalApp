@@ -38,14 +38,19 @@ public enum ErrorCode {
     FAILED_TO_UPDATE_ROLE("ERR_FAILED_TO_UPDATE_ROLE", "Failed to update role of user."),
     FAILED_TO_FETCH_USER_JOURNAL_ENTRIES("ERR_FAILED_TO_FETCH_USER_JOURNAL_ENTRIES", "Failed to fetch user journal entries"),
     FAILED_TO_CREATE_AND_SAVE_JOURNAL_ENTRY("ERR_FAILED_TO_CREATE_AND_SAVE_JOURNAL_ENTRY", "Failed to create and save journal entry"),
-
-
+    FAILED_TO_UPDATE_JOURNAL_ENTRY("ERR_FAILED_TO_UPDATE_JOURNAL_ENTRY", "Failed to update journal entry"),
+    JOURNAL_OBJECT_ID_MISSING("ERR_JOURNAL_OBJECT_ID_MISSING", "journal entry Object Id is missing"),
+    JOURNAL_ENTRY_NOT_FOUND_IN_DB("ERR_JOURNAL_ENTRY_NOT_FOUND_IN_DB", "journal entry not found in db"),
+    JOURNAL_UPDATE_UNAUTHORIZED("ERR_JOURNAL_UPDATE_UNAUTHORIZED", "User is not allowed to update this journal"),
 
 
     TITLE_EMPTY_ERROR("ERR_TITLE_EMPTY", "Journal title is required and cannot be left blank."),
     CONTENT_EMPTY_ERROR("ERR_CONTENT_EMPTY", "Please provide some content for the journal entry."),
     INVALID_SENTIMENT_ERROR("ERR_INVALID_SENTIMENT", "Invalid sentiment value. Accepted values are: HAPPY, SAD, ANGRY, or ANXIOUS."),
-
+    INVALID_PRIVACY_LEVEL_ERROR("ERR_INVALID_PRIVACY_LEVEL_ERROR", "Invalid privacy level value. Accepted values are: PRIVATE, SHARED or PUBLIC."),
+    INVALID_JOURNAL_CATEGORY_ERROR("ERR_INVALID_JOURNAL_CATEGORY_ERROR", "Invalid category value. Accepted values are: DAILY, GRATITUDE, REFLECTION, GOALS, DREAM, TRAVEL, HEALTH, WORK or OTHER"),
+    INVALID_JOURNAL_SORT_BY_VALUE_ERROR("ERR_INVALID_JOURNAL_SORT_BY_VALUE_ERROR", "Invalid sortBy value. Accepted values are: LIKE, COMMENT or VIEW "),
+    INVALID_EMOTION_RATING_ERROR("ERR_INVALID_EMOTION_RATING_ERROR", "Invalid emotion rating value. Accepted values would be in between 1-10"),
     INVALID_JOURNAL_ID_ERROR("ERR_INVALID_JOURNAL_ID_ERROR", "Invalid journal ID provided"),
 
 
@@ -55,9 +60,13 @@ public enum ErrorCode {
     EXCEPTION_WHILE_DELETING_USER_ACCOUNT("FOUND_EXCEPTION_TO_WHILE_DELETING_USER_AC", "Something went wrong while deleting user your email."),
     EXCEPTION_WHILE_UPDATING_USER_ROLE("EXCEPTION_WHILE_UPDATING_USER_ROLE", "Something went wrong while updating role of user."),
     EXCEPTION_WHILE_ADDING_JOURNAL_ENTRY("EXCEPTION_WHILE_ADDING_JOURNAL_ENTRY", "Something went wrong while adding journal entry."),
+    EXCEPTION_WHILE_UPDATING_JOURNAL_ENTRY("EXCEPTION_EXCEPTION_WHILE_UPDATING_JOURNAL_ENTRY", "Something went wrong while updating journal entry."),
     EXCEPTION_WHILE_FETCHING_JOURNAL_ENTRY("EXCEPTION_OCCURRED_WHILE_FETCHING_JOURNAL_ENTRY", "Something went wrong while fetching journal entry."),
-    FAILED_TO_SEND_MSG("ERR_FAILED_TO_SEND_MSG", "Exception while sending sms to user.")
-    ;
+    EXCEPTION_WHILE_SHARING_JOURNAL_ENTRY("EXCEPTION_OCCURRED_WHILE_SHARING_JOURNAL_ENTRY", "Something went wrong while sharing journal entry."),
+    FAILED_TO_SEND_MSG("ERR_FAILED_TO_SEND_MSG", "Exception while sending sms to user."),
+    ACCESS_DENIED("ERR_ACCESS_DENIED","You don't have permission to Access the resource" ),
+    ACCESS_DENIED_TO_SHARE("ERR_ACCESS_DENIED_TO_SHARE","You don't have permission to share the resource" ),
+    SENDER_AND_RECEIVER_ARE_SAME("ERR_SENDER_AND_RECEIVER_ARE_SAME","Sender and receiver are same" );
 
     private final String code;
     private final String message;

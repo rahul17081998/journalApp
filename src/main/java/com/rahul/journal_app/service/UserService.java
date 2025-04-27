@@ -1,5 +1,7 @@
 package com.rahul.journal_app.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.Attachment;
@@ -633,5 +635,22 @@ public class UserService {
             log.error("Error while updating user info in database: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to update user profile photo", e);
         }
+    }
+
+    public List<String> getAllUsersEmail() {
+        List<String> jsonList= userRepository.findAllUserEmails();
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<String> emails = jsonList.stream()
+                .map(json -> {
+                    try {
+                        JsonNode node = objectMapper.readTree(json);
+                        return node.get("userName").asText();
+                    } catch (Exception e) {
+                        return null; // or handle error
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        return emails;
     }
 }
