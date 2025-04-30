@@ -15,17 +15,17 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiResponse<T> {
-//    private boolean success;
+
     private StatusEnum status;
     private String message;
     @Builder.Default
     private int statusCode = HttpStatus.OK.value();
     private T data;
     @Builder.Default
-    private ErrorDetails error = null;
-    @Builder.Default
-    private String statusName = HttpStatus.OK.name();
-    private LocalDateTime timestamp;
+    private ErrorDetails error=null;
+//    @Builder.Default
+//    private String statusName = HttpStatus.OK.name();
+//    private LocalDateTime timestamp;
 
 
     
@@ -34,10 +34,10 @@ public class ApiResponse<T> {
                 .status(StatusEnum.SUCCESSFUL)
                 .message(message)
                 .data(data)
-                .error(null)
+                //.error(null)
                 .statusCode(HttpStatus.OK.value())
-                .statusName(HttpStatus.OK.name())
-                .timestamp(LocalDateTime.now())
+                //.statusName(HttpStatus.OK.name())
+                //.timestamp(LocalDateTime.now())
                 .build();
     }
     
@@ -46,10 +46,10 @@ public class ApiResponse<T> {
                 .status(StatusEnum.SUCCESSFUL)
                 .message(message)
                 .data(data)
-                .error(null)
+                //.error(null)
                 .statusCode(status.value())
-                .statusName(status.name())
-                .timestamp(LocalDateTime.now())
+                //.statusName(status.name())
+                //.timestamp(LocalDateTime.now())
                 .build();
     }
     
@@ -83,8 +83,8 @@ public class ApiResponse<T> {
                 .message(message)
                 .error(errorDetails)
                 .statusCode(status.value())
-                .statusName(status.name())
-                .timestamp(LocalDateTime.now())
+                //.statusName(status.name())
+                //.timestamp(LocalDateTime.now())
                 .build();
     }
 
@@ -99,8 +99,8 @@ public class ApiResponse<T> {
                 .message(errorCode.getMessage())
                 .error(errorDetails)
                 .statusCode(status.value())
-                .statusName(status.name())
-                .timestamp(LocalDateTime.now())
+                //.statusName(status.name())
+                //.timestamp(LocalDateTime.now())
                 .build();
     }
 

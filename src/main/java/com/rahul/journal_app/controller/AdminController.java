@@ -2,7 +2,9 @@ package com.rahul.journal_app.controller;
 
 import com.rahul.journal_app.cache.AppCache;
 import com.rahul.journal_app.constants.Constants;
+import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.model.ApiResponse;
 import com.rahul.journal_app.model.UserDto;
 import com.rahul.journal_app.repository.UserRepository;
 import com.rahul.journal_app.service.UserService;
@@ -63,56 +65,24 @@ public class AdminController {
         return new ResponseEntity<>("An error occur to add the user", HttpStatus.NOT_ACCEPTABLE);
     }
 
-    @PostMapping("/grant-admin-access")
-    public ResponseEntity<?> grantAdminAccessToUser(@RequestParam("email") String userName){
+    @PostMapping("/update-user-role")
+    public ResponseEntity<ApiResponse<?>> updateUserRole(@RequestParam("email") String userName, @RequestParam("grantAdmin") boolean grantAdmin){
+        log.info("Received request to {} admin access for user: {}", grantAdmin?"grant":"remove", userName);
+
         if(!util.isValidEmail(userName)){
-            return new ResponseEntity<>(Constants.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST);
-        }
-        User user = userRepository.findByUserName(userName);
-        if(user==null){
-            return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
-        }
-        if(util.isAdmin(userName)){
-            return new ResponseEntity<>(Constants.USER_ALREADY_HAS_ADMIN_ACCESS, HttpStatus.BAD_REQUEST);
+            log.warn("Invalid email format received: {}", userName);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error(ErrorCode.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST));
         }
 
         try{
-            ResponseEntity<?> response = userService.updateRoleOfUser(user, true);
-            if(response.getBody()!=null){
-                return response;
-            }
+            return userService.updateRoleOfUser(userName, grantAdmin);
         }catch (Exception e){
-            log.error("Exception, while granting admin access to the user {}", e.getMessage() ,e);
-            throw new RuntimeException(e);
+            log.error("Unexpected exception while updating user role for {}: {}", userName, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(ErrorCode.USER_REGISTRATION_FAILED, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+
         }
-        return new ResponseEntity<>(Constants.ADMIN_ACCESS_GRANT_EXCEPTION, HttpStatus.BAD_REQUEST);
     }
-
-
-    @PostMapping("/remove-admin-access")
-    public ResponseEntity<?> removeAdminAccess(@RequestParam("email") String userName){
-        if(!util.isValidEmail(userName)){
-            return new ResponseEntity<>(Constants.INVALID_EMAIL_FORMAT, HttpStatus.BAD_REQUEST);
-        }
-        User user = userRepository.findByUserName(userName);
-        if(user==null){
-            return new ResponseEntity<>(Constants.USER_NOT_FOUND, HttpStatus.BAD_REQUEST);
-        }
-        if(!util.isAdmin(userName)){
-            return new ResponseEntity<>(Constants.USER_DOES_NOT_HAVE_ADMIN_ACCESS, HttpStatus.BAD_REQUEST);
-        }
-
-        try{
-            ResponseEntity<?> response = userService.updateRoleOfUser(user, false);
-            if(response.getBody()!=null){
-                return response;
-            }
-        }catch (Exception e){
-            log.error("Exception, while granting admin access to the user {}", e.getMessage() ,e);
-            throw new RuntimeException(e);
-        }
-        return new ResponseEntity<>(Constants.ADMIN_ACCESS_REMOVE_EXCEPTION, HttpStatus.BAD_REQUEST);
-    }
-
 
 }

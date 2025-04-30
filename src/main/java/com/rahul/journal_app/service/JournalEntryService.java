@@ -1,23 +1,40 @@
 package com.rahul.journal_app.service;
 
+import com.rahul.journal_app.constants.Constants;
+import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.controller.JournalEntryControllerV2;
 import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.enums.*;
+import com.rahul.journal_app.exception.*;
+import com.rahul.journal_app.mapper.JournalEntityMapper;
+import com.rahul.journal_app.model.ApiResponse;
+import com.rahul.journal_app.model.CommentDetail;
+import com.rahul.journal_app.model.JournalEntryDTO;
+import com.rahul.journal_app.model.request.CommentRequest;
+import com.rahul.journal_app.model.request.JournalEntityRequest;
+import com.rahul.journal_app.model.response.JournalEntryResponse;
 import com.rahul.journal_app.repository.JournalEntityRepository;
+import com.rahul.journal_app.repository.UserRepository;
+import com.rahul.journal_app.utils.Util;
+import io.micrometer.common.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Component
 public class JournalEntryService {
@@ -28,6 +45,18 @@ public class JournalEntryService {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private JournalEntityMapper journalEntityMapper;
+
+    @Autowired
+    private Util util;
+    @Autowired
+    private EmailService emailService;
+
 
     public JournalEntries saveJournalEntry(JournalEntries journalEntity){
         if(journalEntity.getDate() ==null){
@@ -62,7 +91,9 @@ public class JournalEntryService {
             userJournalEntities.removeIf(journal -> journal.equals(journalEntries));
             savedUser.setJournalEntities(userJournalEntities);
 
-            User updatedUser = userService.saveUserEntry(savedUser);
+//            User updatedUser = userService.saveUserEntry(savedUser);
+
+            User updatedUser= userRepository.save(savedUser);
             logger.info("> updated journal into user dataDB: {}", updatedUser);
         }catch (Exception e){
             logger.error("An error occur during deleting the entry: {}", e.getMessage());
@@ -71,29 +102,85 @@ public class JournalEntryService {
     }
 
     @Transactional
-    public JournalEntries saveJournalEntryOfUser(JournalEntries myJournal, String userName) {
+    public JournalEntries saveJournalEntryOfUser(JournalEntityRequest myJournal, String userName) {
+
+        log.info("Saving journal entry for user: {}", userName);
+
         try{
             User savedUser = userService.findByUserName(userName);
-            logger.info("> userName : {}, User Object :{}",userName, savedUser);
-            if(!savedUser.isSentimentAnalysis() && myJournal.getSentiment()!=null && !myJournal.getSentiment().equals("")){
-                savedUser.setSentimentAnalysis(true);
-            }
-            // save the journal into journal_entries database
-            JournalEntries savedJournalEntry = saveJournalEntry(myJournal);
-            logger.info("> updated journal into Journal dataDB: {}", savedJournalEntry);
+            log.debug("Fetched user-details for journal saving: {}", savedUser);
 
-            // save the journal id into user's journal list
+            JournalEntries journalEntries=JournalEntries.builder()
+                    .title(myJournal.getTitle())
+                    .content(myJournal.getContent())
+                    .sentiment((myJournal.getSentiment()!=null && !myJournal.getSentiment().trim().isEmpty())? Sentiment.valueOf(myJournal.getSentiment().trim().toUpperCase()) :null)
+                    .authorEmail(userName)
+                    .authorName(util.getUserFullName(savedUser.getFirstName(), savedUser.getLastName()))
+                    .category((myJournal.getCategory()!=null && !myJournal.getCategory().trim().isEmpty())? JournalCategory.valueOf(myJournal.getCategory().trim().toUpperCase()): JournalCategory.DAILY)
+                    .mood(myJournal.getMood()==null? "": myJournal.getMood().trim().toUpperCase())
+                    .emotionRating(myJournal.getEmotionRating()==null? 1: myJournal.getEmotionRating())
+                    .wordCount(util.getWordCount(myJournal.getContent()))
+                    .privacyLevel((myJournal.getPrivacyLevel()!=null && !myJournal.getPrivacyLevel().trim().isEmpty())? PrivacyLevel.valueOf(myJournal.getPrivacyLevel().trim().toUpperCase()): PrivacyLevel.PRIVATE )
+                    .build();
+
+            if(!savedUser.isSentimentAnalysis() && journalEntries.getSentiment()!=null){
+                savedUser.setSentimentAnalysis(true);
+                log.info("Enabled sentiment analysis for user: {}", userName);
+            }
+
+            JournalEntries savedJournalEntry = saveJournalEntry(journalEntries);
+            log.info("Saved journal entry to journal DB: {}", savedJournalEntry);
+
             List<JournalEntries> userJournalEntities=savedUser.getJournalEntities();
             userJournalEntities.add(savedJournalEntry);
-            User updatedUser=userService.saveUserEntry(savedUser);
 
-            logger.info("> updated journal into user dataDB: {}", updatedUser);
+            User updatedUser=userRepository.save(savedUser);
+            log.info("Updated user's journal list: {}", updatedUser.getJournalEntities());
+
             return savedJournalEntry;
         }catch (Exception e){
-            logger.error("> Exception to save the journal of the user, Message: {}", e.getMessage());
-            throw new RuntimeException("> Exception to save the journal of the user, Message: {}", e.getCause());
+            log.error("Exception while saving journal for user {}: {}", userName, e.getMessage(), e);
+            throw new InternalServerErrorException(ErrorCode.EXCEPTION_WHILE_ADDING_JOURNAL_ENTRY, e.getCause());
+        }
+    }
+
+
+    @Transactional
+    public ResponseEntity<ApiResponse<JournalEntries>> updateJournalEntry(JournalEntityRequest request, ObjectId id, String userName) {
+        log.info("Updating journal entry : {}", id.toString());
+        Optional<JournalEntries> optionalSavedJournal=journalEntityRepository.findById(id);
+        if(!optionalSavedJournal.isPresent()){
+            log.info("Journal entry not found with id {} in the db", id.toString());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(ErrorCode.JOURNAL_ENTRY_NOT_FOUND_IN_DB, HttpStatus.NOT_FOUND));
         }
 
+        try {
+            JournalEntries dbJournal = optionalSavedJournal.get();
+            if (dbJournal.getAuthorEmail()==null || !dbJournal.getAuthorEmail().equalsIgnoreCase(userName)) {
+                String message = "User " +userName+" is not allowed to update this journal, Author: "+dbJournal.getAuthorEmail();
+                log.info("User {} is not allowed to update this journal, Author: {}", userName, dbJournal.getAuthorEmail());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                        ApiResponse.error(ErrorCode.JOURNAL_UPDATE_UNAUTHORIZED, message, HttpStatus.BAD_REQUEST));
+            }
+
+            dbJournal.setTitle(StringUtils.isBlank(request.getTitle()) ? dbJournal.getTitle() : request.getTitle().trim());
+            dbJournal.setContent(StringUtils.isBlank(request.getContent()) ? dbJournal.getContent() : request.getContent().trim());
+            dbJournal.setSentiment(StringUtils.isBlank(request.getSentiment()) ? dbJournal.getSentiment() : Sentiment.valueOf(request.getSentiment().trim().toUpperCase()));
+            dbJournal.setCategory(StringUtils.isBlank(request.getCategory()) ? dbJournal.getCategory() : JournalCategory.valueOf(request.getCategory().trim().toUpperCase()));
+            dbJournal.setMood(StringUtils.isBlank(request.getMood()) ? dbJournal.getMood() : request.getMood().trim().toUpperCase());
+            dbJournal.setEmotionRating(request.getEmotionRating() == null ? dbJournal.getEmotionRating() : request.getEmotionRating());
+            dbJournal.setWordCount(StringUtils.isBlank(request.getContent()) ? dbJournal.getWordCount() : util.getWordCount(request.getContent().trim()));
+            dbJournal.setPrivacyLevel(StringUtils.isBlank(request.getPrivacyLevel()) ? dbJournal.getPrivacyLevel() : PrivacyLevel.valueOf(request.getPrivacyLevel().trim().toUpperCase()));
+
+            JournalEntries updatedEntry=journalEntityRepository.save(dbJournal);
+
+            log.info("Journal entry updated successfully: {}", id.toString());
+            return ResponseEntity.ok(ApiResponse.success(updatedEntry, Constants.JOURNAL_ENTRY_UPDATED_SUCCESSFULLY_MSG));
+
+        }catch (Exception e){
+            log.error("Exception while updating journal entry for user: {}: {}", userName, e.getMessage());
+            throw new InternalServerErrorException(ErrorCode.EXCEPTION_WHILE_UPDATING_JOURNAL_ENTRY, e.getCause());
+        }
     }
 
     public boolean isJournalIdContainUser(ObjectId journalId, String userName){
@@ -106,6 +193,357 @@ public class JournalEntryService {
         }
         return false;
     }
+
+    public JournalEntryResponse getJournalEntry(ObjectId id) {
+        Optional<JournalEntries> optionalJournalEntry=journalEntityRepository.findById(id);
+        if(optionalJournalEntry.isEmpty()){
+            log.warn("Journal entry with id {} not found", id);
+            return null;
+        }
+
+        JournalEntries journalEntries = optionalJournalEntry.get();
+        return JournalEntryResponse.builder()
+                .title(journalEntries.getTitle())
+                .content(journalEntries.getContent())
+                .sentiment(journalEntries.getSentiment().name())
+                .date(journalEntries.getDate())
+                .build();
+    }
+
+    @Transactional
+    public void shareJournal(String journalId, String currentUserEmail, String toUserId){
+//        try {
+            ObjectId id = validateAndConvertId(journalId);
+            if(toUserId.trim().toLowerCase().equalsIgnoreCase(currentUserEmail)){
+                throw new BadRequestException("Sender: "+currentUserEmail+" and receiver: " +toUserId+" emails can not be same");
+            }
+            JournalEntries journal = journalEntityRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+            validateAccess(journal, currentUserEmail);
+            if (journal.getPrivacyLevel() != null && journal.getPrivacyLevel() == PrivacyLevel.PRIVATE) {
+                log.info("Mark Journal private to shared: {}", journalId);
+                journal.setPrivacyLevel(PrivacyLevel.SHARED);
+            }
+            journal.getSharedWithUserEmail().add(toUserId);
+            log.info("Save journal {} in DB", journalId);
+            journalEntityRepository.save(journal);
+            User sharedUser = userRepository.findByUserName(toUserId);
+            if (sharedUser == null) {
+                throw new UserNotFoundException("User " + toUserId+" not found in db.");
+            }
+            log.info("Save journal id {} to user {} table", journalId, toUserId);
+            sharedUser.getSharedJournalIds().add(journal.getId());
+            userRepository.save(sharedUser);
+            // Push a notification email to an usr
+            sendShareNotification(toUserId, journal, currentUserEmail);
+            log.info("Journal {}  successfully shared with user: {}", journalId, toUserId);
+//        }catch (Exception e){
+//            log.error("Some Exception occurred while sharing journal: {}", journalId);
+//            throw new SharingJournalException("Some Exception occurred while sharing journal: "+journalId+" with user: "+toUserId);
+//        }
+
+    }
+
+    private void sendShareNotification(String toUserId, JournalEntries journal, String currentUserEmail) {
+
+        try {
+            String htmlBody = util.getBodyForShareJournalNotification(toUserId, journal, currentUserEmail);
+            emailService.sendEmailWithEmbeddedLogo(toUserId, currentUserEmail + "share a journal with you", htmlBody);
+        }catch (Exception e){
+            throw new EmailSendingException("Failed to send notification email to" +toUserId, e.getCause());
+        }
+    }
+
+    public JournalEntryDTO getJournalWithAccessControl(String idStr, String currentUserEmail){
+        ObjectId id= validateAndConvertId(idStr);
+        JournalEntries journal=journalEntityRepository.findById(id)
+                .orElseThrow(()->new ResourceNotFoundException("Journal entry not found with id: "+idStr));
+
+        validateAccess(journal, currentUserEmail);
+
+        incrementViewCount(journal, currentUserEmail);
+
+        return journalEntityMapper.toDTO(journal);
+    }
+
+    private void incrementViewCount(JournalEntries journal, String currentUserEmail) {
+        // Optionally skip author's view count
+        String authorEmail = journal.getAuthorEmail();
+        if(authorEmail!=null && !authorEmail.equalsIgnoreCase(currentUserEmail)){
+            journal.setViewCount(journal.getViewCount()+1);
+            journalEntityRepository.save(journal);
+            log.info("Incremented view count for journal {} to {}", journal.getId(), journal.getViewCount());
+        }
+    }
+
+    private void validateAccess(JournalEntries journal, String currentUserEmail) {
+        boolean hasAccess = false;
+        if(journal.getPrivacyLevel()!=null && journal.getPrivacyLevel()==PrivacyLevel.PRIVATE){
+            hasAccess= journal.getAuthorEmail()!=null && journal.getAuthorEmail().equalsIgnoreCase(currentUserEmail);
+        } else if (journal.getPrivacyLevel()!=null && journal.getPrivacyLevel() == PrivacyLevel.SHARED) {
+            hasAccess = journal.getAuthorEmail().equalsIgnoreCase(currentUserEmail) ||
+                        journal.getSharedWithUserEmail().contains(currentUserEmail);
+        } else if (journal.getPrivacyLevel()!=null && journal.getPrivacyLevel()==PrivacyLevel.PUBLIC) {
+            hasAccess=true;
+        }
+
+        if(!hasAccess){
+            throw new AccessDeniedException("You don't have permission to access this journal entry");
+        }
+    }
+
+    private ObjectId validateAndConvertId(String idStr) {
+        try{
+            return new ObjectId(idStr);
+        }catch (IllegalArgumentException e){
+            throw new BadRequestException("Invalid journal id format: "+idStr);
+        }
+    }
+
+
+    public List<JournalEntryDTO> getAllUserJournals(
+            Boolean isShared,
+            Boolean isFavourite,
+            Boolean isMyCreated,
+            String category,
+            String privacyLevel,
+            String sortBy,
+            String userName)
+    {
+
+        try {
+            log.info("fetch all user's journal...");
+            User user = userRepository.findByUserName(userName);
+            if(user==null){
+                throw new ResourceNotFoundException("User not found: "+userName);
+            }
+
+            HashSet<ObjectId> finalJournalIds = collectJournalIds(isShared, isFavourite, isMyCreated, user);
+            if(finalJournalIds.isEmpty())
+                return Collections.emptyList();
+
+            List<JournalEntries> journals=journalEntityRepository.findByIdIn(new ArrayList<>(finalJournalIds));
+
+            // Filter
+            List<JournalEntries> filteredJournals=journals.stream()
+                    .filter(journal->(StringUtils.isBlank(category) || JournalCategory.valueOf(category.trim().toUpperCase()).equals(journal.getCategory())))
+                    .filter(journal->(StringUtils.isBlank(privacyLevel) || PrivacyLevel.valueOf(privacyLevel.trim().toUpperCase()).equals(journal.getPrivacyLevel())))
+                    .collect(Collectors.toList());
+
+            // Sorting
+            if(!StringUtils.isBlank(sortBy)){
+                sortBy=sortBy.trim().toUpperCase();
+                if(JournalSortBy.valueOf(sortBy)==JournalSortBy.LIKE)
+                    filteredJournals.sort((i1, i2)-> Integer.compare(i2.getLikedByUsers().size(), i1.getLikedByUsers().size()));
+                else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.COMMENT)
+                    filteredJournals.sort((i1,i2)-> Integer.compare(i2.getComments().size(), i1.getComments().size()));
+                else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.VIEW)
+                    filteredJournals.sort((i1,i2)->Integer.compare(i2.getViewCount(), i1.getViewCount()));
+            }
+
+            List<JournalEntryDTO> journalEntryDTOList = new ArrayList<>();
+            filteredJournals.forEach(entry->journalEntryDTOList.add(journalEntityMapper.toDTO(entry)));
+            return journalEntryDTOList;
+
+        }catch (Exception e){
+            throw new InternalServerErrorException("Some exception occurred, while fetching journals of user: "+userName+" Exception: "+e.getMessage());
+        }
+
+    }
+
+    private HashSet<ObjectId> collectJournalIds(Boolean isShared, Boolean isFavourite, Boolean isMyCreated, User user) {
+
+        HashSet<ObjectId> finalJournalIds = new HashSet<>();
+        boolean anyFlagTrue = Boolean.TRUE.equals(isShared) ||
+                Boolean.TRUE.equals(isFavourite) ||
+                Boolean.TRUE.equals(isMyCreated);
+
+        if(!anyFlagTrue){
+            // no flag is active fetch all 3 types
+            finalJournalIds.addAll(user.getSharedJournalIds());
+            finalJournalIds.addAll(user.getFavoriteJournalIds());
+            finalJournalIds.addAll(user.getJournalEntities().stream()
+                    .map(JournalEntries::getId)
+                    .collect(Collectors.toList()));
+        }else{
+            if(Boolean.TRUE.equals(isShared)){
+                finalJournalIds.addAll(user.getSharedJournalIds());
+            }
+
+            if(Boolean.TRUE.equals(isFavourite)){
+                finalJournalIds.addAll(user.getFavoriteJournalIds());
+            }
+
+            if(Boolean.TRUE.equals(isMyCreated)){
+                finalJournalIds.addAll(user.getJournalEntities().stream()
+                        .map(JournalEntries::getId)
+                        .collect(Collectors.toList()));
+            }
+        }
+
+        return finalJournalIds;
+    }
+
+    public void markJournalAsFavoriteToggle(String journalId, String currentUserEmail) {
+        ObjectId id = validateAndConvertId(journalId);
+        JournalEntries journal = journalEntityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+        validateAccess(journal, currentUserEmail);
+        User user = userRepository.findByUserName(currentUserEmail);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with email: " + currentUserEmail);
+        }
+
+        if(user.getFavoriteJournalIds().contains(id)) {
+            log.info("Removing journal {} from favorite list.", journalId);
+            user.getFavoriteJournalIds().remove(id);
+        }else{
+            log.info("Adding journal {} to favorite list.",journalId);
+            user.getFavoriteJournalIds().add(journal.getId());
+        }
+
+        log.info("Save journal: {} to user favorite list", journalId);
+        userRepository.save(user);
+        log.info("Journal {}  successfully marked as favorite for user: {}", journalId, currentUserEmail);
+    }
+
+    public List<JournalEntryDTO> findPopularJournals(String sortBy, String currentUserEmail) {
+
+        List<JournalEntries> journalEntriesList=journalEntityRepository.findAll();
+        List<JournalEntries> journalEntriesWithUserAccess=new ArrayList<>();
+
+        journalEntriesList.forEach(journal->{
+            if(isJournalAccessible(journal, currentUserEmail)){
+                journalEntriesWithUserAccess.add(journal);
+            }
+        });
+
+        // Sorting
+        if(!StringUtils.isBlank(sortBy)){
+            sortBy=sortBy.trim().toUpperCase();
+            if(JournalSortBy.valueOf(sortBy)==JournalSortBy.LIKE)
+                journalEntriesWithUserAccess.sort((i1, i2)->Integer.compare(i2.getLikedByUsers().size(), i1.getLikedByUsers().size()));
+            else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.COMMENT)
+                journalEntriesWithUserAccess.sort((i1,i2)->Integer.compare(i2.getComments().size(), i1.getComments().size()));
+            else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.VIEW)
+                journalEntriesWithUserAccess.sort((i1,i2)->Integer.compare(i2.getViewCount(), i1.getViewCount()));
+        }
+
+        List<JournalEntryDTO> journalEntryDTOList = new ArrayList<>();
+        journalEntriesWithUserAccess.forEach(entry->journalEntryDTOList.add(journalEntityMapper.toDTO(entry)));
+        return journalEntryDTOList;
+    }
+
+
+    private boolean isJournalAccessible(JournalEntries journal, String currentUserEmail) {
+        boolean hasAccess = false;
+        if(journal.getPrivacyLevel()!=null && journal.getPrivacyLevel()==PrivacyLevel.PRIVATE){
+            hasAccess= journal.getAuthorEmail()!=null && journal.getAuthorEmail().equalsIgnoreCase(currentUserEmail);
+        } else if (journal.getPrivacyLevel()!=null && journal.getPrivacyLevel() == PrivacyLevel.SHARED) {
+            hasAccess = journal.getAuthorEmail().equalsIgnoreCase(currentUserEmail) ||
+                    journal.getSharedWithUserEmail().contains(currentUserEmail);
+        } else if (journal.getPrivacyLevel()!=null && journal.getPrivacyLevel()==PrivacyLevel.PUBLIC) {
+            hasAccess=true;
+        }
+
+        return hasAccess;
+    }
+
+    // 1. Fetch journal by id
+    // 2. Depending on type, fetch the relevant users:
+    //    - liked: journal.getLikedByUsers()
+    //    - commented: extract users from journal.getComments()
+    //    - shared: userService.findUsersBySharedJournalId(journalId)
+    // 3. Return as list of usernames/emails
+    public List<String> findUsersByJournalInteraction(String idStr, String engagedBy, String currentUserEmail) {
+        ObjectId id= validateAndConvertId(idStr);
+        JournalEntries journal=journalEntityRepository.findById(id)
+                .orElseThrow(()->new ResourceNotFoundException("Journal entry not found with id: "+idStr));
+
+        validateAccess(journal, currentUserEmail);
+        List<String> userList=new ArrayList<>();
+
+        if(UserEngagedByEnum.valueOf(engagedBy.toUpperCase())== UserEngagedByEnum.LIKE){
+            userList=journal.getLikedByUsers().stream().toList();
+        }else if(UserEngagedByEnum.valueOf(engagedBy.toUpperCase())== UserEngagedByEnum.COMMENT){
+            userList=journal.getComments().stream().map(CommentDetail::getCommenterEmailId).collect(Collectors.toList());
+            // filter duplicates
+            userList=userList.stream().distinct().collect(Collectors.toList());
+        }else if(UserEngagedByEnum.valueOf(engagedBy.toUpperCase())== UserEngagedByEnum.SHARED){
+            userList=journal.getSharedWithUserEmail().stream().toList();
+        }
+
+
+        return userList;
+    }
+
+    @Transactional
+    public JournalEntryDTO toggleLike(String journalId, String userName) {
+        ObjectId id = validateAndConvertId(journalId);
+        JournalEntries journal = journalEntityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+        validateAccess(journal, userName);
+        User user = userRepository.findByUserName(userName);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with email: " + userName);
+        }
+
+        if(journal.getLikedByUsers().contains(userName)) {
+            log.info("Removing user email {} from likedByUser list.", userName);
+            journal.getLikedByUsers().remove(userName);
+        }else{
+            log.info("Adding user email {}  into likedByUser list.",userName);
+            journal.getLikedByUsers().add(userName);
+        }
+
+        log.info("Save journal: {} with user likes", journalId);
+//        userRepository.save(user);
+        journalEntityRepository.save(journal);
+        log.info("Journal {}  successfully marked/unmarked as liked by user: {}", journalId, user);
+        return journalEntityMapper.toDTO(userName, journal);
+
+    }
+
+    @Transactional
+    public JournalEntryDTO addCommentInJournal(CommentRequest request, String journalId, String userName) {
+        ObjectId id = validateAndConvertId(journalId);
+        JournalEntries journal = journalEntityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+        validateAccess(journal, userName);
+        User user = userRepository.findByUserName(userName);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with email: " + userName);
+        }
+
+        CommentDetail comment = createComment(request, user, journal);
+        journal.getComments().add(comment);
+
+        // sort the comments
+        journal.getComments().sort((c1,c2)->{
+            if(c1.isOriginalAuthorReply()==c2.isOriginalAuthorReply()) return 0;
+            return c1.isOriginalAuthorReply()?-1:1;
+        });
+
+        journalEntityRepository.save(journal);
+        log.info("Comment added successfully in journal {} by user {}", journalId, user);
+        return journalEntityMapper.toDTO(userName, journal);
+    }
+
+    private CommentDetail createComment(CommentRequest request, User user, JournalEntries journal) {
+        return CommentDetail.builder()
+                .commenterName(util.getUserFullName(user.getFirstName(), user.getLastName()))
+                .commenterEmailId(user.getUserName())
+                .content(request.getContent())
+                .isOriginalAuthorReply(journal.getAuthorEmail()!=null && user.getUserName().equalsIgnoreCase(journal.getAuthorEmail()))
+                .createdDate(new Date())
+                .build();
+    }
+
+
 }
 
 

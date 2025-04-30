@@ -21,7 +21,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -57,8 +59,7 @@ public class User {
     private LocalDateTime userCreatedDate;
     @LastModifiedDate
     private LocalDateTime UserUpdatedDate;
-    
-    // New fields
+
     private String profileImageUrl;
     private String maritalStatus;
     private String occupation;
@@ -76,6 +77,8 @@ public class User {
     private EmergencyContact emergencyContact;
     private String bloodGroup;
     private Preferences preferences;
+    private HashSet<ObjectId> sharedJournalIds = new HashSet<>();
+    private HashSet<ObjectId> favoriteJournalIds=new HashSet<>();  // Favorite journal entries
     @DBRef
     private List<JournalEntries> journalEntities= new ArrayList<>();
 }

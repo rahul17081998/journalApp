@@ -21,6 +21,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 
 @RestController
 @RequestMapping("/user")
@@ -123,5 +125,10 @@ public class UserController {
             HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
             return ResponseEntity.status(status)
                     .body(ApiResponse.error(ErrorCode.PROFILE_PHOTO_UPDATE_FAILED, e.getMessage(), status));}
+    }
+
+    @GetMapping("/all-email")
+    public List<String> getAllUserEmails(){
+        return userService.getAllUsersEmail();
     }
 }

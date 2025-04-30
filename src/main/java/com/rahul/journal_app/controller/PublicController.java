@@ -12,7 +12,6 @@ import com.rahul.journal_app.model.request.PasswordRestRequest;
 import com.rahul.journal_app.service.*;
 import com.rahul.journal_app.utils.JwtUtil;
 import com.rahul.journal_app.utils.Util;
-import com.twilio.base.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -115,8 +114,8 @@ public class PublicController {
                 "email", user.getUserName(),
                 "message", Constants.USER_VERIFICATION_EMAIL_SENT_SUCCESSFULLY
         );
-        return ResponseEntity.ok(ApiResponse
-                .success(response, Constants.SIGNUP_SUCCESSFUL_MSG));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse
+                .success(response, Constants.SIGNUP_SUCCESSFUL_MSG, HttpStatus.CREATED));
     }
 
     // create jwt token
@@ -205,14 +204,11 @@ public class PublicController {
 
     @PostMapping("/send-sms")
     public ResponseEntity<?> sendSMS(@RequestParam("phoneNo") String phoneNo){
-        if (!phoneNo.startsWith("+")) {
-            phoneNo= "+" + phoneNo;
-        }
         try{
-            ResponseEntity<?> response=smsService.sendWelcomeSMST(phoneNo);
-            return response;
+            return smsService.sendWelcomeSMST(phoneNo);
         }catch (Exception e){
-            return new ResponseEntity<>("Exception while sending sms to user", HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.error(ErrorCode.FAILED_TO_SEND_MSG, HttpStatus.BAD_REQUEST));
         }
     }
 

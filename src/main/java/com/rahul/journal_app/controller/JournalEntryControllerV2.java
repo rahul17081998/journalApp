@@ -1,9 +1,22 @@
 package com.rahul.journal_app.controller;
 
+import com.rahul.journal_app.constants.Constants;
+import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
+import com.rahul.journal_app.exception.AccessDeniedException;
+import com.rahul.journal_app.exception.BadRequestException;
+import com.rahul.journal_app.exception.ResourceNotFoundException;
+import com.rahul.journal_app.exception.UserNotFoundException;
+import com.rahul.journal_app.model.ApiResponse;
+import com.rahul.journal_app.model.JournalEntryDTO;
+import com.rahul.journal_app.model.request.CommentRequest;
+import com.rahul.journal_app.model.request.JournalEntityRequest;
 import com.rahul.journal_app.service.JournalEntryService;
 import com.rahul.journal_app.service.UserService;
+import com.rahul.journal_app.utils.Util;
+import io.micrometer.common.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-
+@Slf4j
 @RestController
 @RequestMapping(path = "/journal")
 public class JournalEntryControllerV2 {
@@ -26,72 +39,182 @@ public class JournalEntryControllerV2 {
 
     private final UserService userService;
 
-    public JournalEntryControllerV2(JournalEntryService journalEntryService, UserService userService) {
+    private final Util util;
+
+    public JournalEntryControllerV2(JournalEntryService journalEntryService, UserService userService, Util util) {
         this.journalEntryService = journalEntryService;
         this.userService = userService;
+        this.util = util;
     }
+
 
     @GetMapping()
-    public ResponseEntity<List<JournalEntries>> getAllJournalsEntriesOfUser(){
+    public ResponseEntity<ApiResponse<List<JournalEntryDTO>>> fetchAllJournalsOfUser(
+            @RequestParam(required = false) Boolean isShared,
+            @RequestParam(required = false) Boolean isFavourite,
+            @RequestParam(required = false) Boolean isMyCreated,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String privacyLevel,
+            @RequestParam(required = false) String sortBy
+    ){
+
         Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
         String userName= authentication.getName();
-        User user = userService.findByUserName(userName);
-        logger.info("> user name: {}", authentication.getName());
+        log.info("Received request to fetch all journal entries for user: {}", userName);
 
-        logger.info("Fetching all journals");
-        List<JournalEntries> allJournal= user.getJournalEntities();
-        if(allJournal !=null && !allJournal.isEmpty()){
-            logger.info("> No of journals: {}", allJournal.size());
-            return new ResponseEntity<>(allJournal, HttpStatus.OK);
+        if(!util.isValidPrivacyLevel(privacyLevel)){
+            log.info("Invalid privacy level {}", privacyLevel);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_PRIVACY_LEVEL_ERROR, HttpStatus.BAD_REQUEST));
         }
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+        else if(!util.isValidJournalCategory(category)) {
+            log.info("Invalid category value {}", category);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_JOURNAL_CATEGORY_ERROR, HttpStatus.BAD_REQUEST));
+        }else if(!util.isValidJournalSortBy(sortBy)){
+            log.info("Invalid sortBy  value {}", category);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_JOURNAL_SORT_BY_VALUE_ERROR, HttpStatus.BAD_REQUEST));
+        }
 
-    @PostMapping("/create-journal")
-    public ResponseEntity<?> createJournal(@RequestBody JournalEntries myJournal){
-        logger.info("Creating new journal");
-        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
-        String userName= authentication.getName();
-        JournalEntries savedJournalEntry = null;
-        try{
-            savedJournalEntry=journalEntryService.saveJournalEntryOfUser(myJournal, userName);
-            if(savedJournalEntry==null){
-                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        try {
+            List<JournalEntryDTO> journalListDTO = journalEntryService.getAllUserJournals(
+                    isShared, isFavourite, isMyCreated, category, privacyLevel, sortBy, userName
+                    );
+
+            log.info("Fetched journal entries for user: {} - Entry count: {}", userName, journalListDTO != null ? journalListDTO.size() : 0);
+            if (journalListDTO != null && !journalListDTO.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success(journalListDTO, Constants.USER_JOURNALS_FETCH_SUCCESSFULLY_MSG));
             }
 
+            log.info("No journal entries found for user: {}", userName);
+            return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), Constants.NO_JOURNAL_FOUND_MATCHING_THE_CRITERIA_MSG));
+
         }catch (Exception e){
-            logger.info("Exception occur while creating a journal entry, message: {}", e.getMessage());
-            throw new RuntimeException(e.getMessage());
+            log.error("Exception occurred while fetching journal entries for user [{}]: {}", userName, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ErrorCode.FAILED_TO_FETCH_USER_JOURNAL_ENTRIES, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
         }
-        return new ResponseEntity<>(savedJournalEntry, HttpStatus.CREATED);
+
+    }
+//    @GetMapping()
+    public ResponseEntity<ApiResponse<List<JournalEntries>>> getAllJournalsEntriesOfUser(){
+        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
+        String userName= authentication.getName();
+        log.info("Received request to fetch all journal entries for user: {}", userName);
+
+        try {
+
+            User user = userService.findByUserName(userName);
+            if (user == null) {
+                logger.warn("User not found: {}", userName);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, Constants.USER_NOT_FOUND_MSG, HttpStatus.NOT_FOUND));
+            }
+
+
+
+            List<JournalEntries> journalList = user.getJournalEntities();
+            log.info("Fetched journal entries for user: {} - Entry count: {}", userName, journalList != null ? journalList.size() : 0);
+
+            if (journalList != null && !journalList.isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success(journalList, Constants.USER_JOURNALS_FETCH_SUCCESSFULLY_MSG));
+            }
+
+            log.info("No journal entries found for user: {}", userName);
+            return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), Constants.NO_JOURNAL_FOUND_MATCHING_THE_CRITERIA_MSG));
+
+        }catch (Exception e){
+            log.error("Exception occurred while fetching journal entries for user [{}]: {}", userName, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ErrorCode.FAILED_TO_FETCH_USER_JOURNAL_ENTRIES, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
     }
 
+    /*
+    JournalEntryControllerV2.java Updates:
+    > Update createJournal method
+    > Add fields for authorEmail, authorName, category, mood, emotionRating
+    > Initialize privacyLevel to PRIVATE and empty lists for comments/likedByUsers
+     */
+    @PostMapping("/create-journal")
+    public ResponseEntity<ApiResponse<JournalEntries>> createJournal(@RequestBody JournalEntityRequest myJournal){
+        logger.info("Received request to create a new journal entry");
+        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
+        String userName= authentication.getName();
+
+        if(StringUtils.isBlank(myJournal.getTitle())){
+            log.warn("Journal creation failed: Title is blank");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.TITLE_EMPTY_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(StringUtils.isBlank(myJournal.getContent())){
+            log.warn("Journal creation failed: Content is blank");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.CONTENT_EMPTY_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidSentiment(myJournal.getSentiment())){
+            log.warn("Journal creation failed: Invalid sentiment {}", myJournal.getSentiment());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_SENTIMENT_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidPrivacyLevel(myJournal.getPrivacyLevel())){
+            log.info("Journal creation failed: Invalid privacy level {}", myJournal.getPrivacyLevel());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_PRIVACY_LEVEL_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidJournalCategory(myJournal.getCategory())) {
+            log.info("Journal creation failed: Invalid category value {}", myJournal.getCategory());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_JOURNAL_CATEGORY_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidEmotionRating(myJournal.getEmotionRating())){
+            log.info("Journal creation failed: Invalid Emotion Rating value {}", myJournal.getEmotionRating());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_EMOTION_RATING_ERROR, HttpStatus.BAD_REQUEST));
+        }
+
+
+        try{
+            JournalEntries savedJournalEntry=journalEntryService.saveJournalEntryOfUser(myJournal, userName);
+            if(savedJournalEntry==null){
+                log.error("Failed to save journal entry for user: {}", userName);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.FAILED_TO_CREATE_AND_SAVE_JOURNAL_ENTRY, HttpStatus.BAD_REQUEST));
+            }
+
+            log.info("Journal entry created successfully for user: {}", userName);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(savedJournalEntry, Constants.JOURNAL_ENTRY_CREATED_SUCCESSFULLY_MSG, HttpStatus.CREATED));
+
+        }catch (Exception e){
+            log.error("Exception while creating journal entry for user: {}", userName);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ErrorCode.EXCEPTION_WHILE_ADDING_JOURNAL_ENTRY, HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+
+    }
+
+    /*
+    3. Update getJournalById method
+        Modify to include view count increment when journal is viewed
+        Check if requesting user can access based on privacyLevel
+     */
     @GetMapping("/id/{id}")
-    public ResponseEntity<?> getJournalById(@PathVariable("id") ObjectId id){
-        logger.info("Fetching journal with id: {}", id);
+    public ResponseEntity<ApiResponse<JournalEntryDTO>> getJournalById(@PathVariable("id") String id){
+        log.info("Request received to fetch journal with ID: {}", id);
         try {
+
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String userName = authentication.getName();
+            JournalEntryDTO journal = journalEntryService.getJournalWithAccessControl(id, userName);
+            return ResponseEntity.ok(ApiResponse.success(journal, Constants.JOURNAL_ENTRY_FETCH_SUCCESSFULLY_MSG));
 
-            Optional<JournalEntries> optionalJournalEntity = Optional.empty();
-            if(journalEntryService.isJournalIdContainUser(id, userName)){
-                optionalJournalEntity=journalEntryService.findJournalById(id);
-            }
+        }catch (ResourceNotFoundException e){
+            log.warn("Journal not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.JOURNAL_ENTRY_NOT_FOUND_IN_DB, e.getMessage(), HttpStatus.NOT_FOUND));
+        }catch (AccessDeniedException e){
+            log.warn("Access denied: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.ACCESS_DENIED, e.getMessage(), HttpStatus.NOT_FOUND));
 
-            if (optionalJournalEntity.isPresent()) {
-                return new ResponseEntity<>(optionalJournalEntity.get(), HttpStatus.OK);
-            } else {
-                logger.warn("User [{}] does not have a journal with id [{}]", userName, id);
-                return new ResponseEntity<>("User "+userName+" doesn't have journal id "+id.toString(), HttpStatus.NOT_FOUND);
-            }
-        }catch (Exception e){
-            // Log the exception and return a 500 response
-            logger.error("An error occurred while fetching journal by id [{}]: {}", id, e.getMessage(), e);
-            return new ResponseEntity<>("An internal server error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
-
+        } catch (Exception e){
+            logger.error("Exception while fetching journal entry with id {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ErrorCode.EXCEPTION_WHILE_FETCHING_JOURNAL_ENTRY, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
         }
     }
 
+
+    // A journal entry can only be deleted by its original autor
     @DeleteMapping("/id/{id}")
     public ResponseEntity<?> deleteJournal(@PathVariable("id") ObjectId id){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -111,29 +234,277 @@ public class JournalEntryControllerV2 {
         }
     }
 
+
+
+    /*
+    Update updateJournal method
+    > Extend to support updating new fields (category, mood, emotionRating)
+    > Ensure privacy settings are properly validated
+    > A journal entry can only be updated by its original author
+     */
     @PutMapping("/id/{id}")
-    public ResponseEntity<?> updateJournal(@PathVariable("id") ObjectId id,
-                                                        @RequestBody JournalEntries newJournal)
+    public ResponseEntity<ApiResponse<JournalEntries>> updateJournal(@PathVariable("id") String idStr, @RequestBody JournalEntityRequest request)
     {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userName = authentication.getName();
-        if(journalEntryService.isJournalIdContainUser(id, userName)){
-            try{
-                Optional<JournalEntries> optionalJournalEntity = journalEntryService.findJournalById(id);
-                JournalEntries oldJournal = optionalJournalEntity.orElse(null);
-                if(oldJournal!=null){
-                    logger.info("Updating the journal");
-                    oldJournal.setTitle(newJournal.getTitle()!=null && !newJournal.getTitle().equals("")? newJournal.getTitle() : oldJournal.getTitle());
-                    oldJournal.setContent(newJournal.getContent()!=null && !newJournal.getContent().equals("")? newJournal.getContent() : oldJournal.getContent());
-                    journalEntryService.saveJournalEntry(oldJournal);
-                    return new ResponseEntity<>(oldJournal, HttpStatus.OK);
-                }
-                return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            }catch (Exception e){
-                logger.error("An error occurred while updating a journal by id [{}]: {}", id, e.getMessage(), e);
-                return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-            }
+
+        if(StringUtils.isBlank(idStr)){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.JOURNAL_OBJECT_ID_MISSING, HttpStatus.BAD_REQUEST));
         }
-        return new ResponseEntity<>("User don't have the given journal", HttpStatus.NOT_FOUND);
+        else if(request.getTitle()!=null && request.getTitle().isEmpty()){
+            log.warn("Journal update failed: Title is blank");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.TITLE_EMPTY_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(request.getContent()!=null && request.getContent().isEmpty()){
+            log.warn("Journal update failed: Content is blank");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.CONTENT_EMPTY_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidSentiment(request.getSentiment())){
+            log.warn("Journal update failed: Invalid sentiment {}", request.getSentiment());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_SENTIMENT_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidPrivacyLevel(request.getPrivacyLevel())){
+            log.info("Journal update failed: Invalid privacy level {}", request.getPrivacyLevel());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_PRIVACY_LEVEL_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidJournalCategory(request.getCategory())) {
+            log.info("Journal update failed: Invalid category value {}", request.getCategory());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_JOURNAL_CATEGORY_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        else if(!util.isValidEmotionRating(request.getEmotionRating())){
+            log.info("Journal update failed: Invalid Emotion Rating value {}", request.getEmotionRating());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_EMOTION_RATING_ERROR, HttpStatus.BAD_REQUEST));
+        }
+
+
+        ObjectId id;
+        try{
+            id=new ObjectId(idStr);
+            ResponseEntity<ApiResponse<JournalEntries>> response=journalEntryService.updateJournalEntry(request, id, userName);
+            return response;
+        }catch (Exception e){
+            log.error("Exception while updating journal entry for user: {} : {}", userName, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ErrorCode.FAILED_TO_UPDATE_JOURNAL_ENTRY, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
     }
+
+    @GetMapping("/share-journal")
+    public ResponseEntity<ApiResponse<String>> shareJournal(
+            @RequestParam(required = true) String toEmail,
+            @RequestParam(required = true) String journalId)
+    {
+
+        log.info("Request received to share journal: {} with user: {}", journalId, toEmail);
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String userName = authentication.getName();
+            journalEntryService.shareJournal(journalId, userName, toEmail);
+            return ResponseEntity.ok(ApiResponse.success(Constants.JOURNAL_ENTRY_SHARED_SUCCESSFULLY_MSG));
+
+        }catch (UserNotFoundException e){
+            log.warn("User not found: {}", toEmail);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, e.getMessage(), HttpStatus.NOT_FOUND));
+
+        }
+        catch (ResourceNotFoundException e){
+            log.warn("Journal not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.JOURNAL_ENTRY_NOT_FOUND_IN_DB, e.getMessage(), HttpStatus.NOT_FOUND));
+        }catch (AccessDeniedException e){
+            log.warn("Access denied: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.ACCESS_DENIED_TO_SHARE, e.getMessage(), HttpStatus.BAD_REQUEST));
+
+        } catch (BadRequestException e){
+            log.warn("Bad request: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.SENDER_AND_RECEIVER_ARE_SAME, e.getMessage(), HttpStatus.BAD_REQUEST));
+
+        }
+        catch (Exception e){
+            logger.error("Exception while fetching journal entry with id {}: {}", journalId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ErrorCode.EXCEPTION_WHILE_SHARING_JOURNAL_ENTRY, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @GetMapping("/favorite-journal-toggle")
+    public ResponseEntity<ApiResponse<JournalEntryDTO>> markJournalFavoriteToggle(
+            @RequestParam(required = true) String journalId)
+    {
+        log.info("Request received to Mark journal favorite with ID: {}", journalId);
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String userName = authentication.getName();
+            journalEntryService.markJournalAsFavoriteToggle(journalId, userName);
+            return ResponseEntity.ok(ApiResponse.success(Constants.JOURNAL_ENTRY_TOGGLE_FAVORITE_SUCCESSFULLY_MSG));
+
+        }catch (UserNotFoundException e){
+            log.warn("user not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, e.getMessage(), HttpStatus.NOT_FOUND));
+
+        }
+        catch (ResourceNotFoundException e){
+            log.warn("Journal not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.JOURNAL_ENTRY_NOT_FOUND_IN_DB, e.getMessage(), HttpStatus.NOT_FOUND));
+        }catch (AccessDeniedException e){
+            log.warn("Access denied: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.ACCESS_DENIED, e.getMessage(), HttpStatus.BAD_REQUEST));
+
+        }
+        catch (Exception e){
+            logger.error("Exception while Marking journal entry as favorite with id {}: {}", journalId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ErrorCode.EXCEPTION_WHILE_SHARING_JOURNAL_ENTRY, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @GetMapping("/most-popular")
+    public ResponseEntity<ApiResponse<List<JournalEntryDTO>>> getMostPopularJournals(@RequestParam(defaultValue = "like") String sortBy){
+        log.info("Request received to sort the journals based on most : {}", sortBy.trim());
+        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
+        String userName= authentication.getName();
+
+        if(!util.isValidJournalSortBy(sortBy)){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_JOURNAL_SORT_BY_VALUE_ERROR, HttpStatus.BAD_REQUEST));
+        }
+        sortBy=sortBy.trim();
+
+        try {
+            List<JournalEntryDTO> popularJournals = journalEntryService.findPopularJournals(sortBy, userName);
+
+            if (popularJournals != null && !popularJournals.isEmpty()) {
+                log.info("Fetched journal entries for user: {} - Entry count: {}", userName, popularJournals != null ? popularJournals.size() : 0);
+                return ResponseEntity.ok(ApiResponse.success(popularJournals, Constants.USER_JOURNALS_FETCH_SUCCESSFULLY_MSG));
+            }
+
+            log.info("No journal entries found for user: {}", userName);
+            return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), Constants.NO_JOURNAL_FOUND_MATCHING_THE_CRITERIA_MSG));
+
+        }catch (Exception e){
+            log.error("Exception occurred while fetching journal entries for user [{}]: {}", userName, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ErrorCode.FAILED_TO_FETCH_USER_JOURNAL_ENTRIES, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+
+    }
+
+    //    GET /api/journals/{id}/likes - Get users who liked/commented/whom shared a journal entry
+    @GetMapping("/user-by-journal-interaction")
+    public ResponseEntity<ApiResponse<List<String>>> getUsersByJournalInteraction(
+            @RequestParam("journalId") String journalId,
+            @RequestParam("engagedBy") String engagedBy)
+    {
+
+
+        log.info("Request received to find users who liked or commented or whom shared a journal entry  : {}", engagedBy.trim());
+        Authentication authentication =SecurityContextHolder.getContext().getAuthentication();
+        String userName= authentication.getName();
+        engagedBy=engagedBy.trim();
+
+
+        if(!util.isValidType(engagedBy)){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(ErrorCode.INVALID_ENGAGED_BY_VALUE, HttpStatus.BAD_REQUEST));
+        }
+
+
+        try {
+            List<String> usersByJournalInteraction = journalEntryService.findUsersByJournalInteraction(journalId, engagedBy, userName);
+
+            if (usersByJournalInteraction != null && !usersByJournalInteraction.isEmpty()) {
+                log.info("users who Liked/Commented or Shared the journals: {}", usersByJournalInteraction);
+                return ResponseEntity.ok(ApiResponse.success(usersByJournalInteraction, Constants.USER_JOURNAL_ENGAGEMENT_FETCH_SUCCESS+engagedBy.toUpperCase()));
+            }
+
+            log.info("No users who Liked/Commented or Shared the journals");
+            return ResponseEntity.ok(ApiResponse.success(new ArrayList<>(), Constants.NO_JOURNAL_FOUND_MATCHING_THE_CRITERIA_MSG));
+
+        }catch (Exception e){
+            log.error("Exception occurred while fetching journal users who Liked/Commented or Shared the journals [{}]: {}", userName, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    ApiResponse.error(ErrorCode.FAILED_TO_FETCH_USER_JOURNAL_ENTRIES, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    //  POST /api/journals/{id}/toggle-like - Toggle like status for current user
+    @GetMapping("/like-journal-toggle")
+    public ResponseEntity<ApiResponse<JournalEntryDTO>> markJournalLikedToggle(
+            @RequestParam(required = true) String journalId
+    ){
+
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String userName = authentication.getName();
+            log.info("User '{}' submitted a request to toggle like status for journal ID '{}'", userName, journalId);
+
+            return ResponseEntity.ok(ApiResponse
+                    .success(journalEntryService.toggleLike(journalId, userName),
+                            Constants.JOURNAL_ENTRY_TOGGLE_LIKE_SUCCESSFULLY_MSG));
+
+        }catch (UserNotFoundException e){
+            log.warn("user not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, e.getMessage(), HttpStatus.NOT_FOUND));
+
+        }
+        catch (ResourceNotFoundException e){
+            log.warn("Journal not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.JOURNAL_ENTRY_NOT_FOUND_IN_DB, e.getMessage(), HttpStatus.NOT_FOUND));
+        }catch (AccessDeniedException e){
+            log.warn("Access denied: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.ACCESS_DENIED, e.getMessage(), HttpStatus.BAD_REQUEST));
+
+        }
+        catch (Exception e){
+            logger.error("An exception occurred while toggling like status for journal ID '{}': {}", journalId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ErrorCode.EXCEPTION_WHILE_TOGGLING_LIKE_JOURNAL_ENTRY, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
+
+    @PostMapping("/add-comment")
+    public ResponseEntity<ApiResponse<JournalEntryDTO>> addCommentToJournal(
+            @RequestParam(required = true) String journalId,
+            @RequestBody CommentRequest request)
+    {
+
+        try {
+
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String userName = authentication.getName();
+            log.info("User '{}' submitted a request to add a comment to journal with ID '{}'", userName, journalId);
+
+            JournalEntryDTO journalResponse = journalEntryService.addCommentInJournal(request, journalId, userName);
+            return ResponseEntity.ok(ApiResponse
+                    .success(journalResponse, Constants.COMMENT_ADDED_SUCCESSFULLY_MSG));
+
+        }catch (UserNotFoundException e){
+            log.warn("user not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.USER_NOT_FOUND, e.getMessage(), HttpStatus.NOT_FOUND));
+
+        }
+        catch (ResourceNotFoundException e){
+            log.warn("Journal not found: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(ErrorCode.JOURNAL_ENTRY_NOT_FOUND_IN_DB, e.getMessage(), HttpStatus.NOT_FOUND));
+        }catch (AccessDeniedException e){
+            log.warn("Access denied: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(ErrorCode.ACCESS_DENIED, e.getMessage(), HttpStatus.BAD_REQUEST));
+
+        }
+        catch (Exception e){
+            logger.error("Exception occurred while adding a comment to journal ID '{}': {}", journalId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error(ErrorCode.EXCEPTION_WHILE_ADDING_COMMENT, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR));
+        }
+    }
+
 }

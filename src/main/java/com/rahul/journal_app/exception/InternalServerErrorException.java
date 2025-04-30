@@ -5,6 +5,11 @@ import com.rahul.journal_app.constants.ErrorCode;
 public class InternalServerErrorException extends RuntimeException{
     private final ErrorCode errorCode;
 
+    public InternalServerErrorException(String message) {
+        super(message);
+        this.errorCode = null;
+    }
+
     public InternalServerErrorException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.errorCode = errorCode;

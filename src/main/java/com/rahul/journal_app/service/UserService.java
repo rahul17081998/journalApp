@@ -1,5 +1,7 @@
 package com.rahul.journal_app.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rahul.journal_app.constants.Constants;
 import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.entity.Attachment;
@@ -7,6 +9,7 @@ import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
 import com.rahul.journal_app.entity.UserOtp;
 import com.rahul.journal_app.enums.Gender;
+import com.rahul.journal_app.enums.RoleEnum;
 import com.rahul.journal_app.exception.BadOtpException;
 import com.rahul.journal_app.exception.BadRequestException;
 import com.rahul.journal_app.exception.InternalServerErrorException;
@@ -164,10 +167,10 @@ public class UserService {
         }
     }
 
-    public User saveUserEntry(User user){
-        User savedUser = userRepository.save(user);
-        return savedUser;
-    }
+//    public User saveUserEntry(User user){
+//        User savedUser = userRepository.save(user);
+//        return savedUser;
+//    }
 
     public List<UserDto> getAllUsers(){
         List<User> allUser= userRepository.findAll();
@@ -197,6 +200,13 @@ public class UserService {
                     .toUriString();
         }
 
+        Set<String> favJournals=user.getFavoriteJournalIds().stream()
+                .map(id->id.toString())
+                .collect(Collectors.toSet());
+
+        Set<String> sharedJournals= user.getSharedJournalIds().stream()
+                .map(id->id.toString())
+                .collect(Collectors.toSet());
 
         UserDto userDto = UserDto.builder()
                 .id(user.getId())
@@ -231,6 +241,8 @@ public class UserService {
                 .emergencyContact(convertEmergencyContactToDto(user.getEmergencyContact()))
                 .bloodGroup(user.getBloodGroup())
                 .preferences(convertPreferencesToDto(user.getPreferences()))
+                .sharedJournalIds(sharedJournals)
+                .favoriteJournalIds(favJournals)
                 .build();
         return userDto;
     }
@@ -530,24 +542,50 @@ public class UserService {
         return ResponseEntity.ok(ApiResponse.success(Constants.PASSWORD_RESET_SUCCESSFUL, HttpStatus.OK));
     }
 
-    public ResponseEntity<?> updateRoleOfUser(User user, boolean adminAccess) {
-        try {
-            List<String> roleOfUser = user.getRoles();
-            log.info("We are providing admin access to the user: {}", adminAccess);
-            if(adminAccess) { // grant admin access
-                roleOfUser.add("ADMIN");
-            }else{ // remove admin access
-                List<String> roleWithoutADMIN=roleOfUser.stream()
-                        .filter(r->!r.toUpperCase().contains("ADMIN"))
-                        .collect(Collectors.toList());
-                roleOfUser=roleWithoutADMIN;
+    public ResponseEntity<ApiResponse<?>> updateRoleOfUser(String userName, boolean adminAccess) {
+        log.info("Received request to update role for user: {}, grantAdmin: {}", userName, adminAccess);
+
+        User user = userRepository.findByUserName(userName);
+        if(user==null){
+            log.warn("User not found: {}", userName);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                    ApiResponse.error(ErrorCode.USER_NOT_FOUND, null, HttpStatus.NOT_FOUND));
+        }
+
+        List<String> roleOfUser =Optional.ofNullable(user.getRoles()).orElse(new ArrayList<>());
+        log.debug("Current roles for user {}: {}", userName, roleOfUser);
+
+        if(adminAccess){
+            if(util.isAdmin(userName)){
+                log.info("User {} already has admin access", userName);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                        ApiResponse.error(ErrorCode.USER_ALREADY_HAS_ADMIN_ACCESS, HttpStatus.CONFLICT));
             }
+
+            roleOfUser.add(RoleEnum.ADMIN.name());
+            log.info("Granted admin access to user: {}", userName);
+        }
+        else{
+            if(!util.isAdmin(userName)){
+                log.info("User {} already has only user access", userName);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                        ApiResponse.error(ErrorCode.USER_ALREADY_HAS_USER_ACCESS, HttpStatus.CONFLICT));
+            }
+            roleOfUser.removeIf(role->role.toUpperCase().contains(RoleEnum.ADMIN.name()));
+            if(roleOfUser.isEmpty()) roleOfUser.add(RoleEnum.USER.name());
+            log.info("Revoked admin access from user: {}", userName);
+        }
+
+
+        try {
             user.setRoles(roleOfUser);
             User saveUser=userRepository.save(user);
-            return new ResponseEntity<>(saveUser, HttpStatus.OK);
+            log.info("User roles updated successfully for user: {}", userName);
+            return ResponseEntity.ok(ApiResponse.success(saveUser, Constants.USER_ROLE_SUCCESSFULLY_MSG, HttpStatus.OK));
+
         }catch (Exception e){
-            log.info("Error while saving in db {}",e.getMessage());
-            throw new RuntimeException(e);
+            log.error("Exception while updating roles for user {}: {}", userName, e.getMessage(), e);
+            throw new InternalServerErrorException(ErrorCode.EXCEPTION_WHILE_UPDATING_USER_ROLE, e.getCause());
         }
 
     }
@@ -606,5 +644,22 @@ public class UserService {
             log.error("Error while updating user info in database: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to update user profile photo", e);
         }
+    }
+
+    public List<String> getAllUsersEmail() {
+        List<String> jsonList= userRepository.findAllUserEmails();
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<String> emails = jsonList.stream()
+                .map(json -> {
+                    try {
+                        JsonNode node = objectMapper.readTree(json);
+                        return node.get("userName").asText();
+                    } catch (Exception e) {
+                        return null; // or handle error
+                    }
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        return emails;
     }
 }
