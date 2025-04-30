@@ -24,12 +24,14 @@ public class JournalEntryDTO {
     private Date lastModifiedDate;
     private String category;
     private String mood;
-    private Integer emotionRating;
     private Integer viewCount;
-    private String privacyLevel;
-    private HashSet<String> sharedWithUserEmails;
-    private List<CommentDetail> comments;
     private Integer commentCount;
     private Integer likeCount;
-    private boolean likedByCurrentUser;
+    private String privacyLevel;
+    private Integer emotionRating;
+    private HashSet<String> sharedWithUserEmails;
+    private HashSet<String> likedByUsers;
+    private List<CommentDetail> comments;
+    private boolean currentUserLiked;
+
 }

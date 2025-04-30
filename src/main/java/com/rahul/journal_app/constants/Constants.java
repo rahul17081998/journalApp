@@ -50,6 +50,7 @@ public interface Constants {
     public static final String WEATHER_FETCH_SUCCESSFULLY_MSG = "Weather fetch successfully";
     public static final String LOGIN_SUCCESSFUL_MSG = "Login successful";
     public static final String USER_ACCOUNT_DELETED_SUCCESSFULLY_MSG = "User account deleted successful";
+    public static final String USER_JOURNAL_ENGAGEMENT_FETCH_SUCCESS = "Users engaged with journals fetched successfully for: ";
     public static final String USER_ROLE_SUCCESSFULLY_MSG = "User role updated successful";
     public static final String USER_JOURNALS_FETCH_SUCCESSFULLY_MSG = "User journals fetched successful";
     public static final String NO_JOURNAL_FOUND_MATCHING_THE_CRITERIA_MSG = "No journals found matching the criteria for user";
@@ -57,6 +58,9 @@ public interface Constants {
     public static final String JOURNAL_ENTRY_UPDATED_SUCCESSFULLY_MSG = "Journal entry updated successful";
     public static final String JOURNAL_ENTRY_FETCH_SUCCESSFULLY_MSG = "Journal entry fetch successfully";
     public static final String JOURNAL_ENTRY_SHARED_SUCCESSFULLY_MSG = "Journal entry shared successfully";
+    public static final String JOURNAL_ENTRY_TOGGLE_FAVORITE_SUCCESSFULLY_MSG = "Journal entry marked or unmarked favorite successfully";
+    public static final String JOURNAL_ENTRY_TOGGLE_LIKE_SUCCESSFULLY_MSG = "Journal entry marked or unmarked as like successfully";
+    public static final String COMMENT_ADDED_SUCCESSFULLY_MSG = "Comment has been added successfully";
 
 
 

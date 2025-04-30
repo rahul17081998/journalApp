@@ -50,6 +50,7 @@ public enum ErrorCode {
     INVALID_PRIVACY_LEVEL_ERROR("ERR_INVALID_PRIVACY_LEVEL_ERROR", "Invalid privacy level value. Accepted values are: PRIVATE, SHARED or PUBLIC."),
     INVALID_JOURNAL_CATEGORY_ERROR("ERR_INVALID_JOURNAL_CATEGORY_ERROR", "Invalid category value. Accepted values are: DAILY, GRATITUDE, REFLECTION, GOALS, DREAM, TRAVEL, HEALTH, WORK or OTHER"),
     INVALID_JOURNAL_SORT_BY_VALUE_ERROR("ERR_INVALID_JOURNAL_SORT_BY_VALUE_ERROR", "Invalid sortBy value. Accepted values are: LIKE, COMMENT or VIEW "),
+    INVALID_ENGAGED_BY_VALUE("ERR_INVALID_ENGAGED_BY_VALUE", "Invalid engagedBy value. Accepted values are: LIKE, COMMENT or SHARED "),
     INVALID_EMOTION_RATING_ERROR("ERR_INVALID_EMOTION_RATING_ERROR", "Invalid emotion rating value. Accepted values would be in between 1-10"),
     INVALID_JOURNAL_ID_ERROR("ERR_INVALID_JOURNAL_ID_ERROR", "Invalid journal ID provided"),
 
@@ -63,10 +64,14 @@ public enum ErrorCode {
     EXCEPTION_WHILE_UPDATING_JOURNAL_ENTRY("EXCEPTION_EXCEPTION_WHILE_UPDATING_JOURNAL_ENTRY", "Something went wrong while updating journal entry."),
     EXCEPTION_WHILE_FETCHING_JOURNAL_ENTRY("EXCEPTION_OCCURRED_WHILE_FETCHING_JOURNAL_ENTRY", "Something went wrong while fetching journal entry."),
     EXCEPTION_WHILE_SHARING_JOURNAL_ENTRY("EXCEPTION_OCCURRED_WHILE_SHARING_JOURNAL_ENTRY", "Something went wrong while sharing journal entry."),
+    EXCEPTION_WHILE_TOGGLING_LIKE_JOURNAL_ENTRY("EXCEPTION_WHILE_TOGGLING_LIKE_JOURNAL_ENTRY", "Something went wrong while toggling journal entry as LIKE."),
+    EXCEPTION_WHILE_ADDING_COMMENT("EXCEPTION_WHILE_ADDING_COMMENT", "An error occurred while adding a comment to the journal."),
+    EXCEPTION_WHILE_MARKING_JOURNAL_ENTRY_FAVORITE("EXCEPTION_WHILE_MARKING_JOURNAL_ENTRY_FAVORITE", "Something went wrong while Marking journal entry as favorite."),
     FAILED_TO_SEND_MSG("ERR_FAILED_TO_SEND_MSG", "Exception while sending sms to user."),
     ACCESS_DENIED("ERR_ACCESS_DENIED","You don't have permission to Access the resource" ),
     ACCESS_DENIED_TO_SHARE("ERR_ACCESS_DENIED_TO_SHARE","You don't have permission to share the resource" ),
-    SENDER_AND_RECEIVER_ARE_SAME("ERR_SENDER_AND_RECEIVER_ARE_SAME","Sender and receiver are same" );
+    SENDER_AND_RECEIVER_ARE_SAME("ERR_SENDER_AND_RECEIVER_ARE_SAME","Sender and receiver are same" ),
+;
 
     private final String code;
     private final String message;

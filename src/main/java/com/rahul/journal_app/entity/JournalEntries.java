@@ -34,6 +34,7 @@ public class JournalEntries {
     private Sentiment sentiment;
     private String authorEmail;        // Username/email of author
     private String authorName;      // Full name of author
+
     @CreatedDate
     private Date date;
 
@@ -60,7 +61,7 @@ public class JournalEntries {
 
     // Sharing & Privacy
     @Builder.Default
-    private PrivacyLevel privacyLevel = PrivacyLevel.PRIVATE;  // PRIVATE, SHARED, PUBLIC
+    private PrivacyLevel privacyLevel = PrivacyLevel.PUBLIC;  // PRIVATE, SHARED, PUBLIC
 
     @Builder.Default
     private HashSet<String> sharedWithUserEmail=new HashSet<>();
@@ -69,14 +70,13 @@ public class JournalEntries {
     @Builder.Default
     private List<CommentDetail> comments=new ArrayList<>();
 
-    @Builder.Default
-    private Integer commentCount = 0;
+//    @Builder.Default
+//    private Integer commentCount = 0;
+//
+//    @Builder.Default
+//    private Integer likeCount = 0;
 
     @Builder.Default
-    private Integer likeCount = 0;
-
-    @Builder.Default
-    private List<LikedByUser> likedByUsers=new ArrayList<>();  // Usernames who liked the entry
-
+    private HashSet<String> likedByUsers=new HashSet<>();  // Usernames who liked the entry
 
 }

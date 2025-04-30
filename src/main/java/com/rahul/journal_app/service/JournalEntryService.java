@@ -5,14 +5,13 @@ import com.rahul.journal_app.constants.ErrorCode;
 import com.rahul.journal_app.controller.JournalEntryControllerV2;
 import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
-import com.rahul.journal_app.enums.JournalCategory;
-import com.rahul.journal_app.enums.JournalSortBy;
-import com.rahul.journal_app.enums.PrivacyLevel;
-import com.rahul.journal_app.enums.Sentiment;
+import com.rahul.journal_app.enums.*;
 import com.rahul.journal_app.exception.*;
 import com.rahul.journal_app.mapper.JournalEntityMapper;
 import com.rahul.journal_app.model.ApiResponse;
+import com.rahul.journal_app.model.CommentDetail;
 import com.rahul.journal_app.model.JournalEntryDTO;
+import com.rahul.journal_app.model.request.CommentRequest;
 import com.rahul.journal_app.model.request.JournalEntityRequest;
 import com.rahul.journal_app.model.response.JournalEntryResponse;
 import com.rahul.journal_app.repository.JournalEntityRepository;
@@ -57,6 +56,7 @@ public class JournalEntryService {
     private Util util;
     @Autowired
     private EmailService emailService;
+
 
     public JournalEntries saveJournalEntry(JournalEntries journalEntity){
         if(journalEntity.getDate() ==null){
@@ -230,7 +230,7 @@ public class JournalEntryService {
             journalEntityRepository.save(journal);
             User sharedUser = userRepository.findByUserName(toUserId);
             if (sharedUser == null) {
-                throw new ResourceNotFoundException("User not found with email: " + toUserId);
+                throw new UserNotFoundException("User " + toUserId+" not found in db.");
             }
             log.info("Save journal id {} to user {} table", journalId, toUserId);
             sharedUser.getSharedJournalIds().add(journal.getId());
@@ -335,11 +335,11 @@ public class JournalEntryService {
             if(!StringUtils.isBlank(sortBy)){
                 sortBy=sortBy.trim().toUpperCase();
                 if(JournalSortBy.valueOf(sortBy)==JournalSortBy.LIKE)
-                    filteredJournals.sort((i1, i2)->i2.getLikeCount().compareTo(i1.getLikeCount()));
+                    filteredJournals.sort((i1, i2)-> Integer.compare(i2.getLikedByUsers().size(), i1.getLikedByUsers().size()));
                 else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.COMMENT)
-                    filteredJournals.sort((i1,i2)->i2.getCommentCount().compareTo(i1.getCommentCount()));
+                    filteredJournals.sort((i1,i2)-> Integer.compare(i2.getComments().size(), i1.getComments().size()));
                 else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.VIEW)
-                    filteredJournals.sort((i1,i2)->i2.getViewCount().compareTo(i1.getViewCount()));
+                    filteredJournals.sort((i1,i2)->Integer.compare(i2.getViewCount(), i1.getViewCount()));
             }
 
             List<JournalEntryDTO> journalEntryDTOList = new ArrayList<>();
@@ -384,6 +384,166 @@ public class JournalEntryService {
 
         return finalJournalIds;
     }
+
+    public void markJournalAsFavoriteToggle(String journalId, String currentUserEmail) {
+        ObjectId id = validateAndConvertId(journalId);
+        JournalEntries journal = journalEntityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+        validateAccess(journal, currentUserEmail);
+        User user = userRepository.findByUserName(currentUserEmail);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with email: " + currentUserEmail);
+        }
+
+        if(user.getFavoriteJournalIds().contains(id)) {
+            log.info("Removing journal {} from favorite list.", journalId);
+            user.getFavoriteJournalIds().remove(id);
+        }else{
+            log.info("Adding journal {} to favorite list.",journalId);
+            user.getFavoriteJournalIds().add(journal.getId());
+        }
+
+        log.info("Save journal: {} to user favorite list", journalId);
+        userRepository.save(user);
+        log.info("Journal {}  successfully marked as favorite for user: {}", journalId, currentUserEmail);
+    }
+
+    public List<JournalEntryDTO> findPopularJournals(String sortBy, String currentUserEmail) {
+
+        List<JournalEntries> journalEntriesList=journalEntityRepository.findAll();
+        List<JournalEntries> journalEntriesWithUserAccess=new ArrayList<>();
+
+        journalEntriesList.forEach(journal->{
+            if(isJournalAccessible(journal, currentUserEmail)){
+                journalEntriesWithUserAccess.add(journal);
+            }
+        });
+
+        // Sorting
+        if(!StringUtils.isBlank(sortBy)){
+            sortBy=sortBy.trim().toUpperCase();
+            if(JournalSortBy.valueOf(sortBy)==JournalSortBy.LIKE)
+                journalEntriesWithUserAccess.sort((i1, i2)->Integer.compare(i2.getLikedByUsers().size(), i1.getLikedByUsers().size()));
+            else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.COMMENT)
+                journalEntriesWithUserAccess.sort((i1,i2)->Integer.compare(i2.getComments().size(), i1.getComments().size()));
+            else if(JournalSortBy.valueOf(sortBy)==JournalSortBy.VIEW)
+                journalEntriesWithUserAccess.sort((i1,i2)->Integer.compare(i2.getViewCount(), i1.getViewCount()));
+        }
+
+        List<JournalEntryDTO> journalEntryDTOList = new ArrayList<>();
+        journalEntriesWithUserAccess.forEach(entry->journalEntryDTOList.add(journalEntityMapper.toDTO(entry)));
+        return journalEntryDTOList;
+    }
+
+
+    private boolean isJournalAccessible(JournalEntries journal, String currentUserEmail) {
+        boolean hasAccess = false;
+        if(journal.getPrivacyLevel()!=null && journal.getPrivacyLevel()==PrivacyLevel.PRIVATE){
+            hasAccess= journal.getAuthorEmail()!=null && journal.getAuthorEmail().equalsIgnoreCase(currentUserEmail);
+        } else if (journal.getPrivacyLevel()!=null && journal.getPrivacyLevel() == PrivacyLevel.SHARED) {
+            hasAccess = journal.getAuthorEmail().equalsIgnoreCase(currentUserEmail) ||
+                    journal.getSharedWithUserEmail().contains(currentUserEmail);
+        } else if (journal.getPrivacyLevel()!=null && journal.getPrivacyLevel()==PrivacyLevel.PUBLIC) {
+            hasAccess=true;
+        }
+
+        return hasAccess;
+    }
+
+    // 1. Fetch journal by id
+    // 2. Depending on type, fetch the relevant users:
+    //    - liked: journal.getLikedByUsers()
+    //    - commented: extract users from journal.getComments()
+    //    - shared: userService.findUsersBySharedJournalId(journalId)
+    // 3. Return as list of usernames/emails
+    public List<String> findUsersByJournalInteraction(String idStr, String engagedBy, String currentUserEmail) {
+        ObjectId id= validateAndConvertId(idStr);
+        JournalEntries journal=journalEntityRepository.findById(id)
+                .orElseThrow(()->new ResourceNotFoundException("Journal entry not found with id: "+idStr));
+
+        validateAccess(journal, currentUserEmail);
+        List<String> userList=new ArrayList<>();
+
+        if(UserEngagedByEnum.valueOf(engagedBy.toUpperCase())== UserEngagedByEnum.LIKE){
+            userList=journal.getLikedByUsers().stream().toList();
+        }else if(UserEngagedByEnum.valueOf(engagedBy.toUpperCase())== UserEngagedByEnum.COMMENT){
+            userList=journal.getComments().stream().map(CommentDetail::getCommenterEmailId).collect(Collectors.toList());
+            // filter duplicates
+            userList=userList.stream().distinct().collect(Collectors.toList());
+        }else if(UserEngagedByEnum.valueOf(engagedBy.toUpperCase())== UserEngagedByEnum.SHARED){
+            userList=journal.getSharedWithUserEmail().stream().toList();
+        }
+
+
+        return userList;
+    }
+
+    @Transactional
+    public JournalEntryDTO toggleLike(String journalId, String userName) {
+        ObjectId id = validateAndConvertId(journalId);
+        JournalEntries journal = journalEntityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+        validateAccess(journal, userName);
+        User user = userRepository.findByUserName(userName);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with email: " + userName);
+        }
+
+        if(journal.getLikedByUsers().contains(userName)) {
+            log.info("Removing user email {} from likedByUser list.", userName);
+            journal.getLikedByUsers().remove(userName);
+        }else{
+            log.info("Adding user email {}  into likedByUser list.",userName);
+            journal.getLikedByUsers().add(userName);
+        }
+
+        log.info("Save journal: {} with user likes", journalId);
+//        userRepository.save(user);
+        journalEntityRepository.save(journal);
+        log.info("Journal {}  successfully marked/unmarked as liked by user: {}", journalId, user);
+        return journalEntityMapper.toDTO(userName, journal);
+
+    }
+
+    @Transactional
+    public JournalEntryDTO addCommentInJournal(CommentRequest request, String journalId, String userName) {
+        ObjectId id = validateAndConvertId(journalId);
+        JournalEntries journal = journalEntityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Journal entry not found with id: +" + journalId));
+
+        validateAccess(journal, userName);
+        User user = userRepository.findByUserName(userName);
+        if (user == null) {
+            throw new UserNotFoundException("User not found with email: " + userName);
+        }
+
+        CommentDetail comment = createComment(request, user, journal);
+        journal.getComments().add(comment);
+
+        // sort the comments
+        journal.getComments().sort((c1,c2)->{
+            if(c1.isOriginalAuthorReply()==c2.isOriginalAuthorReply()) return 0;
+            return c1.isOriginalAuthorReply()?-1:1;
+        });
+
+        journalEntityRepository.save(journal);
+        log.info("Comment added successfully in journal {} by user {}", journalId, user);
+        return journalEntityMapper.toDTO(userName, journal);
+    }
+
+    private CommentDetail createComment(CommentRequest request, User user, JournalEntries journal) {
+        return CommentDetail.builder()
+                .commenterName(util.getUserFullName(user.getFirstName(), user.getLastName()))
+                .commenterEmailId(user.getUserName())
+                .content(request.getContent())
+                .isOriginalAuthorReply(journal.getAuthorEmail()!=null && user.getUserName().equalsIgnoreCase(journal.getAuthorEmail()))
+                .createdDate(new Date())
+                .build();
+    }
+
+
 }
 
 

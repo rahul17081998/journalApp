@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -77,7 +78,7 @@ public class User {
     private String bloodGroup;
     private Preferences preferences;
     private HashSet<ObjectId> sharedJournalIds = new HashSet<>();
-    private List<ObjectId> favoriteJournalIds=new ArrayList<>();  // Favorite journal entries
+    private HashSet<ObjectId> favoriteJournalIds=new HashSet<>();  // Favorite journal entries
     @DBRef
     private List<JournalEntries> journalEntities= new ArrayList<>();
 }

@@ -1,17 +1,11 @@
 package com.rahul.journal_app.utils;
 
-import com.rahul.journal_app.entity.Attachment;
 import com.rahul.journal_app.entity.JournalEntries;
 import com.rahul.journal_app.entity.User;
-import com.rahul.journal_app.enums.JournalCategory;
-import com.rahul.journal_app.enums.JournalSortBy;
-import com.rahul.journal_app.enums.PrivacyLevel;
-import com.rahul.journal_app.enums.Sentiment;
+import com.rahul.journal_app.enums.*;
 import com.rahul.journal_app.repository.AttachmentRepository;
 import com.rahul.journal_app.repository.UserRepository;
-import com.rahul.journal_app.service.AttachmentService;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,7 +15,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Base64;
 import java.util.List;
 @Slf4j
 @Component
@@ -307,7 +300,7 @@ public class Util {
 
     public boolean isValidJournalCategory(String category) {
         if(category==null || category.trim().isEmpty()){
-            return true;  // Default would be DAILY
+            return true;  // Default would be LIKE
         }
         try{
             JournalCategory.valueOf(category.trim().toUpperCase());
@@ -422,6 +415,17 @@ public class Util {
                 "</html>";
 
         return body;
+    }
+
+    public boolean isValidType(String type) {
+        if(type==null || type.trim().isEmpty()) return true;
+        try{
+            UserEngagedByEnum.valueOf(type.trim().toUpperCase());
+            return true;
+        }catch (IllegalArgumentException e){
+            return false;
+        }
+
     }
 
     // Helper to capitalize first character

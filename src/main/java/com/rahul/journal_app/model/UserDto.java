@@ -9,12 +9,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.kafka.common.protocol.types.Field;
 import org.bson.types.ObjectId;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -57,6 +60,8 @@ public class UserDto {
     private EmergencyContact emergencyContact;
     private String bloodGroup;
     private Preferences preferences;
+    private Set<String> sharedJournalIds = new HashSet<>();
+    private Set<String> favoriteJournalIds=new HashSet<>();  // Favorite journal entries
     private List<JournalEntries> journalEntities= new ArrayList<>();
 
 }

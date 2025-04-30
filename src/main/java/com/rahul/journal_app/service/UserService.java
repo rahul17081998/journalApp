@@ -200,6 +200,13 @@ public class UserService {
                     .toUriString();
         }
 
+        Set<String> favJournals=user.getFavoriteJournalIds().stream()
+                .map(id->id.toString())
+                .collect(Collectors.toSet());
+
+        Set<String> sharedJournals= user.getSharedJournalIds().stream()
+                .map(id->id.toString())
+                .collect(Collectors.toSet());
 
         UserDto userDto = UserDto.builder()
                 .id(user.getId())
@@ -234,6 +241,8 @@ public class UserService {
                 .emergencyContact(convertEmergencyContactToDto(user.getEmergencyContact()))
                 .bloodGroup(user.getBloodGroup())
                 .preferences(convertPreferencesToDto(user.getPreferences()))
+                .sharedJournalIds(sharedJournals)
+                .favoriteJournalIds(favJournals)
                 .build();
         return userDto;
     }

@@ -1,4 +1,4 @@
-package com.rahul.journal_app.model;
+package com.rahul.journal_app.model.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LikedByUser {
+public class CommentRequest {
 
-    private String name;
-    private String email;
+    private String content;
 }
