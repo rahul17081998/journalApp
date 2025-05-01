@@ -11,15 +11,17 @@ import java.io.IOException;
 @Component
 @WebFilter("/*") // Applies to all requests
 public class GlobalRequestLoggingFilter implements Filter {
+    private static final String ANSI_BLUE = "\u001B[34m";
+    private static final String ANSI_RESET = "\u001B[0m";
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
             throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
         String httpMethod = httpRequest.getMethod();
-        String requestUri = httpRequest.getRequestURI();
+        String requestUri = httpRequest.getRequestURI().replaceFirst("^/journal", "");
 
-        log.info("{} : Path={}", httpMethod, requestUri);
+        log.info("{}Incoming Request -> Method: [{}], URI: [{}]{}", ANSI_BLUE, httpMethod, requestUri, ANSI_RESET);
         filterChain.doFilter(servletRequest, servletResponse);
     }
 }
