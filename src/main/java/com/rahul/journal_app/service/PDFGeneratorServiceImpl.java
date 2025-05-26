@@ -89,7 +89,7 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
             for (var journal : user.getJournalEntities()) {
                 // Get the current page number before adding the journal
                 int currentPage = writer.getPageNumber();
-                log.info("Current page number before adding journal '{}': {}", journal.getTitle(), currentPage);
+                log.debug("Current page number before adding journal '{}': {}", journal.getTitle(), currentPage);
 
                 // Journal Entry Card
                 PdfPTable journalCard = new PdfPTable(1);
@@ -105,7 +105,7 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
 
                 // Get the page number after adding the journal Title
                 int newPageNumber = writer.getPageNumber();
-                log.info("Page number after adding journal '{}': {}", journal.getTitle(), newPageNumber);
+                log.debug("Page number after adding journal '{}': {}", journal.getTitle(), newPageNumber);
 
                 titleCell.setPadding(8);
                 titleCell.setBorder(Rectangle.NO_BORDER);
@@ -425,7 +425,7 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
 
             // Calculate the offset for page numbers (user details + TOC page)
             int pageOffset = 2; // User details (1) + TOC (1)
-            log.info("TOC page offset: {}", pageOffset);
+            log.debug("TOC page offset: {}", pageOffset);
 
         for (var journal : user.getJournalEntities()) {
                 PdfPCell tocEntryCell = new PdfPCell(new Phrase(
@@ -441,8 +441,7 @@ public class PDFGeneratorServiceImpl implements PDFGeneratorService {
                 // Get the stored page number from the map and add the offset
                 Integer pageNumber = journalPageNumbers.get(journal.getTitle());
                 int adjustedPageNumber = pageNumber != null ? pageNumber : 0;
-                log.info("TOC entry - Journal: '{}', Original page: {}, Adjusted page: {}", 
-                    journal.getTitle(), pageNumber, adjustedPageNumber);
+                log.debug("TOC entry - Journal: '{}', Original page: {}, Adjusted page: {}", journal.getTitle(), pageNumber, adjustedPageNumber);
                 
                 PdfPCell pageCell = new PdfPCell(new Phrase(
                     adjustedPageNumber > 0 ? String.valueOf(adjustedPageNumber) : "N/A",
