@@ -41,14 +41,14 @@ public class UserScheduler {
     private KafkaTemplate<String, SentimentalData> kafkaTemplate;
 
 
+    //@Scheduled(cron = "0 * * * * *")
     @Scheduled(cron = "0 0 9 * * SUN")
-//    @Scheduled(cron = "0 * * ? * *")
     public void fetchUserAndSendSaMail(){
         log.info("Scheduler started");
         List<User> users =userRepositoryImpl.getUsersForSentimentAnalysis();
         for(User user: users){
             List<JournalEntries> journalEntriesList=user.getJournalEntities();
-            LocalDateTime oneWeekAgo = LocalDateTime.now().minus(7, ChronoUnit.DAYS);
+            LocalDateTime oneWeekAgo = LocalDateTime.now().minus(500, ChronoUnit.DAYS);
 
             List<Sentiment> sentimentList = journalEntriesList.stream()
                     .filter(entry -> {
@@ -75,11 +75,15 @@ public class UserScheduler {
                         .sentiment(body)
                         .build();
                 try {
-                    kafkaTemplate.send("weekly-sentiments", sentimentalData.getEmail(), sentimentalData);
+                    kafkaTemplate.send("VELINQ.SENTIMENT.DEV", sentimentalData.getEmail(), sentimentalData);
+                    log.info("msg sent to kafka");
                 }catch (Exception e){
                     // fall back, if kafka not working
                     emailService.sendMail(sentimentalData.getEmail(), subject, body);
+                    log.warn("Kafka have some issue ", e);
                 }
+            }else{
+                log.info("No Sentiment available");
             }
         }
     }
