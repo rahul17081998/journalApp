@@ -9,6 +9,7 @@ import com.rahul.journal_app.repository.UserRepositoryImpl;
 import com.rahul.journal_app.service.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,8 @@ public class UserScheduler {
     @Autowired
     private KafkaTemplate<String, SentimentalData> kafkaTemplate;
 
+    @Value("${velinq.topic}")
+    private String velinqTopic;
 
     //@Scheduled(cron = "0 * * * * *")
     @Scheduled(cron = "0 0 9 * * SUN")
@@ -67,20 +70,19 @@ public class UserScheduler {
                         "Thank you for using our platform, and we hope to continue providing valuable insights to you.\n\n" +
                         "Best regards,\n" +
                         "The Sentiment Analysis Team\n" +
-                        "Rahul Kumar";
-//                emailService.sendMail(user.getEmail(), subject, body);
+                        "VELINQ";
 
                 SentimentalData sentimentalData = SentimentalData.builder()
                         .email(user.getUserName())
                         .sentiment(body)
                         .build();
                 try {
-                    kafkaTemplate.send("VELINQ.SENTIMENT.DEV", sentimentalData.getEmail(), sentimentalData);
-                    log.info("msg sent to kafka");
+                    kafkaTemplate.send(velinqTopic, sentimentalData.getEmail(), sentimentalData);
+                    log.info("Message sent to Kafka topic: [{}] for user: {}", velinqTopic, user.getUserName());
                 }catch (Exception e){
                     // fall back, if kafka not working
                     emailService.sendMail(sentimentalData.getEmail(), subject, body);
-                    log.warn("Kafka have some issue ", e);
+                    log.warn("Failed to send message to Kafka topic: [{}]. Falling back to email for user: {}", velinqTopic, user.getUserName(), e);
                 }
             }else{
                 log.info("No Sentiment available");

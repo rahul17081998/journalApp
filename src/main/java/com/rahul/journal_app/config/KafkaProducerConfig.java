@@ -18,6 +18,10 @@ import java.util.Map;
 @Configuration
 public class KafkaProducerConfig {
 
+    private static final String SASL_MECHANISM = "sasl.mechanism";
+    private static final String SASL_JAAS_CONFIG = "sasl.jaas.config";
+    private static final String SECURITY_PROTOCOL = "security.protocol";
+
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
     @Value("${kafka.config.userName}")
@@ -27,17 +31,14 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, SentimentalData> producerFactory() {
-//        log.info("--------Kafka JAAS config initialized");
         log.info("--------bootstrap.server: {}", bootstrapServers);
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        // Confluent Cloud Security
-        configProps.put("security.protocol", "SASL_SSL");
-        configProps.put("sasl.mechanism", "PLAIN");
-        configProps.put("sasl.jaas.config", getKafkaString());
-//        configProps.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username='NMYQ225BRYPTZOTL' password='cfltL/tIQqJGpGBzXoEDjv76pgudtXQSn787DzOdic2hX7rfiPg5MBQdUbRlW7XA';");
+        configProps.put(SECURITY_PROTOCOL, "SASL_SSL");
+        configProps.put(SASL_MECHANISM, "PLAIN");
+        configProps.put(SASL_JAAS_CONFIG, buildKafkaJaasConfig());
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
@@ -48,6 +49,13 @@ public class KafkaProducerConfig {
                 .replace("KAFKA_USER_NAME", kafkaUserName)
                 .replace("KAFKA_PASSWORD", kafkaPassword);
         return configString;
+    }
+
+    private String buildKafkaJaasConfig() {
+        return String.format(
+                "org.apache.kafka.common.security.plain.PlainLoginModule required username='%s' password='%s';",
+                kafkaUserName, kafkaPassword
+        );
     }
 
     @Bean
