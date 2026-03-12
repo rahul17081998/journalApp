@@ -75,28 +75,28 @@ public class SpringSecurity implements AuthenticationProvider, AuthenticationMan
     // User authentication validation
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
-        logger.info("> Starting authentication process...");
+        logger.debug("Starting authentication process...");
         String username = authentication.getName().toLowerCase();
-        logger.info("> Attempting authentication for username: {}", username);
+        logger.info("[{}] Attempting authentication", username);
         String pwd = authentication.getCredentials().toString();
 
         try {
             User user = userRepository.findByUserName(username);
             if (user != null) {
-                logger.info("> User information retrieved successfully for username: {}", username);
+                logger.debug("[{}] User information retrieved", username);
                 if (passwordEncoder.matches(pwd, user.getPassword())) {
                     List<GrantedAuthority> authorities = new ArrayList<>();
                     for (String role : user.getRoles()) {
                         authorities.add(new SimpleGrantedAuthority(role));
                     }
-                    logger.info("> Authentication successful for username: {}", username);
+                    logger.info("[{}] Authentication successful", username);
                     return new UsernamePasswordAuthenticationToken(username, pwd, authorities);
                 } else {
-                    logger.warn("--> Password validation failed for username: {} ", username);
+                    logger.warn("[{}] Password validation failed", username);
                     throw new BadCredentialsException("Invalid password");
                 }
             } else {
-                logger.warn("> No user found in the database for username: {}", username);
+                logger.warn("[{}] User found in the database", username);
                 throw new BadCredentialsException("No user register with this details");
             }
         }catch (Exception e) {

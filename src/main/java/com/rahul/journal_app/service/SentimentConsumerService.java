@@ -1,7 +1,9 @@
 package com.rahul.journal_app.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rahul.journal_app.model.SentimentalData;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -22,17 +24,44 @@ public class SentimentConsumerService {
     @Value("${velinq.groupId2}")
     private String velinqGroupId2;
 
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @KafkaListener(topics = "${velinq.topic}", groupId = "${velinq.groupId1}")
-    public void onConsume(SentimentalData sentimentalData){
-        log.info("Message consume from kafka server. topic: [{}], groupId: [{}]", velinqTopic, velinqGroupId2);
-        sendEmail(sentimentalData);
+    public void onConsume(ConsumerRecord<String, SentimentalData> record) {
+
+        log.info("onConsume called, Topic={}, Partition={}", record.topic(), record.partition());
+        log.debug("Key={}, Message={}", record.key(), record.value());
+        try{
+            sendEmail(record.value());
+        }catch (Exception e){
+            log.error("Error parsing message", e);
+
+        }
     }
 
-//    @KafkaListener(topics = "${velinq.topic}", groupId = "${velinq.groupId2}")
+
+//    @KafkaListener(topics = "VELINQ.SENTIMENT.DEV", groupId = "aw1")
+//    public void onUpdate(ConsumerRecord<String, String> record) {
+//
+//        log.info("Consumer=onUpdate | Topic={} | Partition={} | Key={} | Message={}",
+//                record.topic(),
+//                record.partition(),
+//                record.key(),
+//                record.value());
+//    }
+
+
+//    @KafkaListener(topics = "${velinq.topic}", groupId = "${velinq.groupId1}")
+//    public void onConsume(SentimentalData sentimentalData){
+//        log.info("onConsume: Message consume from kafka server. topic: [{}], groupId: [{}]", velinqTopic, velinqGroupId1);
+////        sendEmail(sentimentalData);
+//    }
+//
+//    @KafkaListener(topics = "${velinq.topic}", groupId = "${velinq.groupId1}")
 //    public void onUpdate(SentimentalData sentimentalData){
-//        log.info("Message consume from kafka server. topic: [{}], groupId: [{}]", velinqTopic, velinqGroupId1);
-//        sendEmail(sentimentalData);
+//        log.info("onUpdate: Message consume from kafka server. topic: [{}], groupId: [{}]", velinqTopic, velinqGroupId1);
+////        sendEmail(sentimentalData);
 //    }
 
     private void sendEmail(SentimentalData sentimentalData) {

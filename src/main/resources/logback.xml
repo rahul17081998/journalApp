@@ -18,6 +18,18 @@
         <file>journalApp.log</file>
     </appender>
 
+    <!-- Disable noisy Kafka logs -->
+    <logger name="org.apache.kafka" level="ERROR"/>
+    <logger name="org.apache.kafka.clients.consumer.ConsumerConfig" level="OFF"/>
+    <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="OFF"/>
+    <logger name="org.apache.kafka.common.utils.AppInfoParser" level="OFF"/>
+
+    <!-- Reduce MongoDB logs -->
+    <logger name="org.mongodb.driver" level="WARN"/>
+
+    <!-- Reduce Spring Data logs -->
+    <logger name="org.springframework.data" level="WARN"/>
+
     <!-- Root Logger Configuration -->
     <root level="INFO">
         <appender-ref ref="myConsoleAppender" />
